@@ -297,13 +297,13 @@ export default async function TitlePage({
                 className="card-enter flex flex-col gap-3"
               >
                 <h2 className="text-lg font-bold">Trailer</h2>
-                <div className="aspect-video w-full overflow-hidden rounded-xl border border-line bg-black">
+                <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-line bg-black">
                   <iframe
                     src={`https://www.youtube.com/embed/${title.youtubeKey}`}
                     title={`${title.title} trailer`}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
-                    className="h-full w-full"
+                    className="absolute inset-0 h-full w-full border-0"
                   />
                 </div>
               </section>

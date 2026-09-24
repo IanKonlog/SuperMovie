@@ -3,7 +3,10 @@
 import { useState, useTransition } from "react";
 import { PosterRow } from "@/modules/media/components/poster-row";
 import { QuickAdd } from "@/modules/media/components/quick-add";
-import { useHoverPanel } from "@/modules/media/components/use-hover-panel";
+import {
+  isTouchOnly,
+  useHoverPanel,
+} from "@/modules/media/components/use-hover-panel";
 import { fetchTrendingAction } from "../actions";
 import { titleHref } from "../links";
 import type { TmdbSearchResult } from "../types";
@@ -24,11 +27,17 @@ type Selection = TmdbSearchResult & {
 function Row({
   items,
   type,
+  onPick,
   onHoverOpen,
   onHoverClose,
 }: {
   items: TmdbSearchResult[];
   type: "MOVIE" | "SERIES";
+  onPick: (
+    item: TmdbSearchResult,
+    type: "MOVIE" | "SERIES",
+    anchor: Selection["anchor"],
+  ) => void;
   onHoverOpen: (
     item: TmdbSearchResult,
     type: "MOVIE" | "SERIES",
@@ -46,6 +55,9 @@ function Row({
         rating: item.voteAverage > 0 ? item.voteAverage : undefined,
         year: item.releaseDate?.slice(0, 4),
         href: titleHref(type, item.tmdbId),
+        onSelect: (anchor) => {
+          if (isTouchOnly()) onPick(item, type, anchor);
+        },
         onHoverStart: (anchor) => onHoverOpen(item, type, anchor),
         onHoverEnd: onHoverClose,
       }))}
@@ -121,6 +133,14 @@ export function TrendingSection({
           <Row
             items={movieItems}
             type="MOVIE"
+            onPick={(item, type, anchor) =>
+              panel.toggleTouch({
+                ...item,
+                type,
+                key: `${type}:${item.tmdbId}`,
+                anchor,
+              })
+            }
             onHoverOpen={(item, type, anchor) =>
               panel.hoverOpen({
                 ...item,
@@ -145,6 +165,14 @@ export function TrendingSection({
           <Row
             items={seriesItems}
             type="SERIES"
+            onPick={(item, type, anchor) =>
+              panel.toggleTouch({
+                ...item,
+                type,
+                key: `${type}:${item.tmdbId}`,
+                anchor,
+              })
+            }
             onHoverOpen={(item, type, anchor) =>
               panel.hoverOpen({
                 ...item,

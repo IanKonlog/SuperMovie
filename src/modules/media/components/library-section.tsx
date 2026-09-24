@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Poster } from "./poster";
 import { titleHref } from "@/modules/tmdb/links";
 import { MediaDetailPanel } from "./media-detail-panel";
@@ -34,6 +34,20 @@ export function LibrarySection({
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = items.find((item) => item.id === selectedId) ?? null;
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  function selectAndReveal(id: string) {
+    const next = selectedId === id ? null : id;
+    setSelectedId(next);
+    if (next !== null) {
+      requestAnimationFrame(() => {
+        panelRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      });
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -54,9 +68,7 @@ export function LibrarySection({
             >
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedId(item.id === selectedId ? null : item.id)
-                }
+                onClick={() => selectAndReveal(item.id)}
                 aria-expanded={item.id === selectedId}
                 aria-label={`Manage ${item.title}`}
                 className="relative w-full text-left transition duration-200 ease-out hover:scale-[1.04] hover:drop-shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
@@ -107,7 +119,7 @@ export function LibrarySection({
       )}
 
       {selected && (
-        <div className="pop-enter">
+        <div ref={panelRef} className="pop-enter">
           <MediaDetailPanel
             item={selected}
             seasons={seasonsByItem[selected.id] ?? []}

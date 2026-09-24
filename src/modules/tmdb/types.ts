@@ -89,6 +89,19 @@ export type NextEpisode = {
   isPremiere: boolean;
 };
 
+export type CollectionPart = {
+  tmdbId: number;
+  title: string;
+  posterUrl: string | null;
+  releaseDate: string | null;
+  voteAverage: number;
+};
+
+export type CollectionInfo = {
+  name: string;
+  parts: CollectionPart[];
+};
+
 export type TitleDetails = {
   tmdbId: number;
   type: "MOVIE" | "SERIES";
@@ -104,6 +117,7 @@ export type TitleDetails = {
   numberOfSeasons: number | null;
   status: string | null;
   nextEpisode: NextEpisode | null;
+  collection: CollectionInfo | null;
   cast: TitleCastMember[];
   youtubeKey: string | null;
   videos: TitleVideo[];

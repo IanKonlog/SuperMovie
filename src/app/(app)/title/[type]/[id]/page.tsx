@@ -10,6 +10,7 @@ import { getLibraryEntryForTitle } from "@/modules/media/queries";
 import { ReviewCard } from "./review-card";
 import { TitleAddButton } from "@/modules/tmdb/components/title-add-button";
 import { getTitlePage, fetchSeasonVideos } from "@/modules/tmdb/queries";
+import { Poster } from "@/modules/media/components/poster";
 import { personHref } from "@/modules/tmdb/links";
 import { TitleVideos } from "@/modules/tmdb/components/title-videos";
 import type { QuickAddItem } from "@/modules/media/components/quick-add";
@@ -176,6 +177,60 @@ export default async function TitlePage({
           </div>
         </div>
       </div>
+
+      {/* Collection */}
+      {title.collection && title.collection.parts.length > 1 && (
+        <section
+          aria-label={`Collection: ${title.collection.name}`}
+          className="card-enter flex flex-col gap-3"
+        >
+          <h2 className="text-lg font-bold">
+            From <span className="text-accent">{title.collection.name}</span>
+          </h2>
+          <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-2">
+            {title.collection.parts.map((part) => (
+              <Link
+                key={`${part.tmdbId}`}
+                href={`/title/movie/${part.tmdbId}`}
+                className={`w-32 shrink-0 transition duration-200 ease-out ${
+                  part.tmdbId === title.tmdbId
+                    ? "opacity-100"
+                    : "hover:scale-105 hover:drop-shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
+                }`}
+                aria-current={part.tmdbId === title.tmdbId ? "true" : undefined}
+              >
+                <div className="relative">
+                  <Poster
+                    posterUrl={part.posterUrl}
+                    title={part.title}
+                    size={128}
+                  />
+                  {part.tmdbId === title.tmdbId && (
+                    <span className="absolute inset-0 rounded-lg ring-2 ring-accent" />
+                  )}
+                </div>
+                <p className="mt-1.5 line-clamp-1 text-xs font-medium">
+                  {part.title}
+                </p>
+                <p className="flex items-center gap-1 text-xs text-muted">
+                  {part.voteAverage > 0 && (
+                    <>
+                      <span className="text-amber-400">★</span>
+                      <span>{part.voteAverage.toFixed(1)}</span>
+                      {part.releaseDate && (
+                        <span>· {part.releaseDate.slice(0, 4)}</span>
+                      )}
+                    </>
+                  )}
+                  {part.voteAverage === 0 && part.releaseDate && (
+                    <span>{part.releaseDate.slice(0, 4)}</span>
+                  )}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Cast */}
       {title.cast.length > 0 && (

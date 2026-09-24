@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { PosterRow } from "@/modules/media/components/poster-row";
 import { QuickAdd } from "@/modules/media/components/quick-add";
-import { useHoverPanel } from "@/modules/media/components/use-hover-panel";
+import {
+  isTouchOnly,
+  useHoverPanel,
+} from "@/modules/media/components/use-hover-panel";
 import { titleHref } from "../links";
 import type { Recommendation } from "../types";
 
@@ -44,6 +47,15 @@ export function RecommendationsSection({
               ? `Because of ${rec.because[0]}`
               : rec.releaseDate?.slice(0, 4),
           href: titleHref(rec.type, rec.tmdbId),
+          onSelect: (anchor) => {
+            if (isTouchOnly()) {
+              panel.toggleTouch({
+                ...rec,
+                key: `${rec.type}:${rec.tmdbId}`,
+                anchor,
+              });
+            }
+          },
           onHoverStart: (anchor) =>
             panel.hoverOpen({
               ...rec,

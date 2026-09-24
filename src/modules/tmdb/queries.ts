@@ -15,6 +15,7 @@ import type {
   TmdbSearchResult,
   TitleCastMember,
   TitleDetails,
+  CollectionInfo,
   NextEpisode,
   TitleProvider,
   TitleReview,
@@ -534,6 +535,44 @@ export async function getTitlePage(
     }
 
     const details = (await detailsRes.json()) as RawResult;
+
+    let collection: CollectionInfo | null = null;
+    const belongsRaw = details.belongs_to_collection;
+    if (belongsRaw !== null && typeof belongsRaw === "object") {
+      const belongs = belongsRaw as RawResult;
+      const collectionName = boundedString(belongs.name, 150);
+      const collectionId = boundedNumber(belongs.id, 1, 1_000_000);
+      if (collectionName && collectionId !== null) {
+        const partsRes = await request(`/collection/${collectionId}`);
+        const parts: CollectionInfo["parts"] = [];
+        if (partsRes.ok) {
+          const partsData = (await partsRes.json()) as {
+            parts?: unknown;
+          };
+          const list = Array.isArray(partsData.parts) ? partsData.parts : [];
+          for (const raw of list) {
+            if (raw === null || typeof raw !== "object") continue;
+            const record = raw as RawResult;
+            const partId = boundedNumber(record.id, 1, 100_000_000);
+            const partTitle =
+              boundedString(record.title, MAX_TITLE) ||
+              boundedString(record.name, MAX_TITLE);
+            if (partId === null || !partTitle) continue;
+            parts.push({
+              tmdbId: partId,
+              title: partTitle,
+              posterUrl: posterUrlOrNull(record.poster_path),
+              releaseDate: isoDateOrNull(record.release_date),
+              voteAverage: boundedNumber(record.vote_average, 0, 10) ?? 0,
+            });
+          }
+        }
+        parts.sort((a, b) =>
+          (a.releaseDate ?? "9999").localeCompare(b.releaseDate ?? "9999"),
+        );
+        collection = { name: collectionName, parts };
+      }
+    }
     const title =
       boundedString(details.title, MAX_TITLE) ||
       boundedString(details.name, MAX_TITLE);
@@ -687,6 +726,7 @@ export async function getTitlePage(
           : null,
       status: boundedString(details.status, 40) || null,
       nextEpisode,
+      collection,
       cast,
       youtubeKey,
       videos: seriesVideos,

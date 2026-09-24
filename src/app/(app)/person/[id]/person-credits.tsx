@@ -7,7 +7,10 @@ import {
   QuickAdd,
   type QuickAddAnchor,
 } from "@/modules/media/components/quick-add";
-import { useHoverPanel } from "@/modules/media/components/use-hover-panel";
+import {
+  isTouchOnly,
+  useHoverPanel,
+} from "@/modules/media/components/use-hover-panel";
 import { titleHref } from "@/modules/tmdb/links";
 import type { PersonCredit } from "@/modules/tmdb/types";
 
@@ -119,9 +122,11 @@ export function PersonCredits({ credits }: { credits: PersonCredit[] }) {
             >
               <Link
                 href={titleHref(credit.type, credit.tmdbId)}
-                onMouseEnter={(e) => {
+                onClick={(e) => {
+                  if (!isTouchOnly()) return;
+                  e.preventDefault();
                   const rect = e.currentTarget.getBoundingClientRect();
-                  panel.hoverOpen({
+                  panel.toggleTouch({
                     ...credit,
                     key: `${credit.type}:${credit.tmdbId}`,
                     anchor: {
@@ -132,21 +137,6 @@ export function PersonCredits({ credits }: { credits: PersonCredit[] }) {
                     },
                   });
                 }}
-                onMouseLeave={panel.hoverClose}
-                onFocus={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  panel.hoverOpen({
-                    ...credit,
-                    key: `${credit.type}:${credit.tmdbId}`,
-                    anchor: {
-                      left: rect.left,
-                      top: rect.top,
-                      width: rect.width,
-                      height: rect.height,
-                    },
-                  });
-                }}
-                onBlur={panel.hoverClose}
                 className="block w-full transition duration-200 ease-out hover:z-10 hover:scale-105 hover:drop-shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
               >
                 <Poster

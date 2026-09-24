@@ -9,7 +9,9 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { addMediaItem, type ActionState } from "../actions";
+import { titleHref } from "@/modules/tmdb/links";
 import {
   WATCH_STATUSES,
   WATCH_STATUS_LABELS,
@@ -314,6 +316,15 @@ export function QuickAdd({
               >
                 {pending ? "Adding…" : "＋ Add"}
               </button>
+              {item.tmdbId !== null && (
+                <Link
+                  href={titleHref(item.type, item.tmdbId)}
+                  onClick={onClose}
+                  className="mt-1 self-center px-2 py-2 text-xs text-muted underline transition hover:text-foreground"
+                >
+                  Full page ↗
+                </Link>
+              )}
               {state.error && (
                 <span className="mt-1 text-sm text-red-500">{state.error}</span>
               )}

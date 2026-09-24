@@ -276,6 +276,19 @@ export function QuickAdd({
               }
             >
               <label
+                className={`flex flex-col gap-1 text-xs ${anchored ? "w-20" : ""}`}
+              >
+                <span className="font-medium text-muted">Your rating</span>
+                <select name="rating" defaultValue="" className={selectClasses}>
+                  <option value="">—</option>
+                  {Array.from({ length: 10 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1}/10
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label
                 className={`flex flex-col gap-1 text-xs ${anchored ? "flex-1" : ""}`}
               >
                 <span className="font-medium text-muted">Status</span>

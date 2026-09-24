@@ -114,6 +114,16 @@ export async function addMediaItem(
   const markPrevious = formData.get("markPrevious") === "true";
   const finalStatus = isWatchStatus(status) ? status : "WATCHING";
 
+  const ratingRaw = formData.get("rating");
+  let rating: number | null = null;
+  if (ratingRaw !== null && ratingRaw !== "") {
+    const n = Number(ratingRaw);
+    if (!Number.isInteger(n) || n < 1 || n > 10) {
+      return { error: "Rating must be an integer from 1 to 10." };
+    }
+    rating = n;
+  }
+
   let createdId: string;
   try {
     const created = await db.mediaItem.create({
@@ -121,6 +131,7 @@ export async function addMediaItem(
         title,
         type,
         status: finalStatus,
+        rating,
         tmdbId,
         posterUrl,
         overview,
@@ -133,6 +144,10 @@ export async function addMediaItem(
     createdId = created.id;
   } catch {
     return { error: "Could not save. Please try again." };
+  }
+
+  if (rating !== null && tmdbId !== null) {
+    await sendRatingToTmdb(type, tmdbId, rating).catch(() => undefined);
   }
 
   if (type === "SERIES" && tmdbId !== null) {

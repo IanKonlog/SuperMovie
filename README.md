@@ -64,6 +64,7 @@ Open `https://<machine-name>.<tailnet>.ts.net` from any device on your tailnet.
 - Optional off-VPS copy over Tailscale (from the Mac):
   `scp your-vps:~/backups/superapp-$(date +\%Y\%m\%d)*.sql.gz ~/backups/`
 - Restore a backup: `gunzip -c dump.sql.gz | docker compose exec -T db psql -U postgres superapp`
+
 ## Project layout
 
 - `src/app/` — routing, layouts, login

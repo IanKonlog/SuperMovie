@@ -2,7 +2,12 @@
 
 import { requireSession } from "@/lib/auth";
 import { isMediaType } from "@/modules/media/constants";
-import { fetchSeriesSeasons, fetchTrending, searchTmdb } from "./queries";
+import {
+  discoverByMood,
+  fetchSeriesSeasons,
+  fetchTrending,
+  searchTmdb,
+} from "./queries";
 import type { SearchState, TmdbSearchResult } from "./types";
 
 export type { SearchState } from "./types";
@@ -84,5 +89,46 @@ export async function fetchSeasonListAction(
     };
   } catch {
     return { seasons: [], error: "Season data is unavailable right now." };
+  }
+}
+
+export type MoodState = {
+  results: {
+    tmdbId: number;
+    title: string;
+    posterUrl: string | null;
+    releaseDate: string | null;
+    voteAverage: number;
+  }[];
+  error?: string;
+};
+
+export async function discoverByMoodAction(
+  genres: unknown,
+  maxRuntimeMinutes: unknown,
+): Promise<MoodState> {
+  await requireSession();
+
+  if (!Array.isArray(genres) || genres.length === 0 || genres.length > 3) {
+    return { results: [], error: "Pick 1-3 genres." };
+  }
+  const names = genres
+    .filter((g): g is string => typeof g === "string")
+    .map((g) => g.slice(0, 60));
+  if (names.length === 0) return { results: [], error: "Invalid genres." };
+
+  const runtime = Number(maxRuntimeMinutes);
+  const maxRuntime =
+    maxRuntimeMinutes === "" ||
+    maxRuntimeMinutes === null ||
+    !Number.isFinite(runtime)
+      ? null
+      : Math.min(Math.max(Math.round(runtime), 40), 300);
+
+  try {
+    const results = await discoverByMood(names, maxRuntime);
+    return { results };
+  } catch {
+    return { results: [], error: "Mood search is unavailable right now." };
   }
 }

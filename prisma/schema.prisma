@@ -53,6 +53,50 @@ model MediaItem {
   @@index([tmdbId])
 }
 
+// Append-only activity feed (adds, ratings, status changes, episode logs).
+model ActivityEvent {
+  id        String   @id @default(cuid())
+  kind      String // added | status | rating | episode | removed | notified
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// Books module (module #2 of the super app).
+enum BookStatus {
+  WANT_TO_READ
+  READING
+  FINISHED
+  ABANDONED
+}
+
+model Book {
+  id            String     @id @default(cuid())
+  title         String
+  authors       String[]
+  status        BookStatus @default(WANT_TO_READ)
+  rating        Int? // 1-10
+  googleBooksId String?
+  coverUrl      String?
+  description   String?
+  pageCount     Int?
+  currentPage   Int        @default(0)
+  publishedDate String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, updatedAt])
+}
+
+// Read-only public share links (stats wall).
+model ShareToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  createdAt DateTime @default(now())
+}
+
 // Recommendations the user dismissed from the "For you" shelf.
 model HiddenRecommendation {
   id       String   @id @default(cuid())

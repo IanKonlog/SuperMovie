@@ -9,9 +9,15 @@ import {
 import { getLibraryEntryForTitle } from "@/modules/media/queries";
 import { ReviewCard } from "./review-card";
 import { TitleAddButton } from "@/modules/tmdb/components/title-add-button";
-import { getTitlePage, fetchSeasonVideos } from "@/modules/tmdb/queries";
+import {
+  fetchSeasonVideos,
+  fetchSimilar,
+  getTitlePage,
+} from "@/modules/tmdb/queries";
 import { Poster } from "@/modules/media/components/poster";
 import { personHref } from "@/modules/tmdb/links";
+import { titleHref } from "@/modules/tmdb/links";
+import { PosterRow } from "@/modules/media/components/poster-row";
 import { TitleVideos } from "@/modules/tmdb/components/title-videos";
 import type { QuickAddItem } from "@/modules/media/components/quick-add";
 import type { TitleVideo } from "@/modules/tmdb/types";
@@ -61,6 +67,9 @@ export default async function TitlePage({
   const libraryEntry = await getLibraryEntryForTitle(
     parsed.tmdbId,
     parsed.type,
+  );
+  const similar = await fetchSimilar(parsed.type, parsed.tmdbId).catch(
+    () => [],
   );
   const typeLabel = title.type === "MOVIE" ? "Movie" : "Series";
   const addable: QuickAddItem = {
@@ -272,7 +281,7 @@ export default async function TitlePage({
       )}
 
       {/* Main + sidebar */}
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:grid-rows-[auto_auto_1fr]">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:grid-rows-[auto_auto_auto_1fr]">
         <div className="flex min-w-0 flex-col gap-10 lg:col-start-1 lg:row-start-1">
           {title.type === "SERIES" ? (
             <SeriesVideosSection
@@ -302,7 +311,7 @@ export default async function TitlePage({
           )}
         </div>
 
-        <aside className="flex flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start lg:sticky lg:top-20">
+        <aside className="flex flex-col gap-4 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:self-start lg:sticky lg:top-20">
           {title.nextEpisode && (
             <section
               aria-label="Next up"
@@ -479,10 +488,29 @@ export default async function TitlePage({
             </dl>
           </section>
         </aside>
+        {similar.length > 0 && (
+          <section
+            aria-label="More like this"
+            className="card-enter flex flex-col gap-2 lg:col-start-1 lg:row-start-2"
+          >
+            <h2 className="text-lg font-bold">More like this</h2>
+            <PosterRow
+              items={similar.map((item) => ({
+                key: `${title.type}:${item.tmdbId}`,
+                posterUrl: item.posterUrl,
+                title: item.title,
+                rating: item.voteAverage > 0 ? item.voteAverage : undefined,
+                year: item.releaseDate?.slice(0, 4),
+                href: titleHref(title.type, item.tmdbId),
+              }))}
+            />
+          </section>
+        )}
+
         {title.reviews.length > 0 && (
           <section
             aria-label="Reviews"
-            className="card-enter flex flex-col gap-3 lg:col-start-1 lg:row-start-2"
+            className="card-enter flex flex-col gap-3 lg:col-start-1 lg:row-start-3"
           >
             <h2 className="text-lg font-bold">Reviews</h2>
             <div className="columns-1 gap-3 xl:columns-2">

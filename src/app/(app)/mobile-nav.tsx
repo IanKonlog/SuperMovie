@@ -19,6 +19,11 @@ const LINKS = [
     label: "Stats",
     icon: "M4 20V10M10 20V4M16 20v-7M22 20H2",
   },
+  {
+    href: "/books",
+    label: "Books",
+    icon: "M4 5h7v14H4zM13 5h7v14h-7zM6 3v2M15 3v2",
+  },
 ];
 
 export function MobileNav() {

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { CurrentlyWatching } from "@/modules/media/components/currently-watching";
 import { PosterRow } from "@/modules/media/components/poster-row";
 import { RandomPick } from "@/modules/media/components/random-pick";
+import { notifyAiringEpisodes } from "@/modules/media/actions";
+import { MoodBrowse } from "@/modules/tmdb/components/mood-browse";
 import { GenreProfile } from "@/modules/media/components/genre-profile";
 import {
   getGenreProfile,
@@ -37,6 +39,7 @@ function airingWindow() {
   const now = Date.now();
   return {
     today: new Date(now).toISOString().slice(0, 10),
+    tomorrow: new Date(now + 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
     horizon: new Date(now + 14 * 24 * 60 * 60 * 1000)
       .toISOString()
       .slice(0, 10),
@@ -132,6 +135,21 @@ export default async function HomePage({
     .sort((a, b) => b[1] - a[1])
     .slice(0, 12);
 
+  if (returningSoon.length > 0) {
+    const { today, tomorrow } = airingWindow();
+    await notifyAiringEpisodes(
+      returningSoon
+        .filter(
+          ({ next }) => next?.airDate === today || next?.airDate === tomorrow,
+        )
+        .map(({ item, next }) => ({
+          key: `${item.type}:${item.tmdbId}:${next?.airDate}:${next?.seasonNumber}:${next?.episodeNumber}`,
+          title: item.title,
+          detail: `S${next?.seasonNumber}E${next?.episodeNumber} airs ${next?.airDate}`,
+        })),
+    ).catch(() => undefined);
+  }
+
   const featured: HeroSlide[] = [];
   const maxRows = Math.max(trendingMovies.length, trendingSeries.length);
   for (let i = 0; i < maxRows && featured.length < 5; i++) {
@@ -189,6 +207,8 @@ export default async function HomePage({
           </div>
         )}
       </div>
+
+      <MoodBrowse genres={genreChips.slice(0, 8).map(([name]) => name)} />
 
       {returningSoon.length > 0 && (
         <section aria-label="Returning soon" className="flex flex-col gap-2">

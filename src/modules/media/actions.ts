@@ -14,8 +14,22 @@ export type ActionState = { error?: string; success?: boolean };
 
 const MAX_TEXT = 500;
 
+const WATCH_STATUS_LABELS_SAFE: Record<string, string> = {
+  WATCHING: "watching",
+  WANT_TO_WATCH: "want to watch",
+  COMPLETED: "completed",
+  ON_HOLD: "on hold",
+  DROPPED: "dropped",
+};
+
 function revalidateMedia() {
   revalidatePath("/", "layout");
+}
+
+function logActivity(kind: string, message: string) {
+  return db.activityEvent
+    .create({ data: { kind, message } })
+    .catch(() => undefined);
 }
 
 function optionalInt(
@@ -184,6 +198,7 @@ export async function addMediaItem(
     }
   }
 
+  logActivity("added", `Added ${title}`);
   revalidateMedia();
   return { success: true };
 }
@@ -269,12 +284,34 @@ export async function updateMediaItem(
 
   if (Object.keys(data).length === 0) return { success: true };
 
+  const before = await db.mediaItem.findUnique({
+    where: { id },
+    select: { title: true, status: true, rating: true },
+  });
+
   try {
     const result = await db.mediaItem.updateMany({
       where: { id },
       data,
     });
     if (result.count === 0) return { error: "Item not found." };
+
+    if (before) {
+      if (data.status !== undefined && data.status !== before.status) {
+        logActivity(
+          "status",
+          `Marked ${before.title} ${WATCH_STATUS_LABELS_SAFE[data.status]}`,
+        );
+      }
+      if (data.rating !== undefined && data.rating !== before.rating) {
+        logActivity(
+          "rating",
+          data.rating === null
+            ? `Cleared rating for ${before.title}`
+            : `Rated ${before.title} ${data.rating}/10`,
+        );
+      }
+    }
 
     if (data.status === "COMPLETED") {
       const item = await db.mediaItem.findUnique({
@@ -338,7 +375,12 @@ export async function deleteMediaItem(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
+  const target = await db.mediaItem.findUnique({
+    where: { id },
+    select: { title: true },
+  });
   await db.mediaItem.deleteMany({ where: { id } });
+  if (target) logActivity("removed", `Removed ${target.title}`);
   revalidateMedia();
 }
 
@@ -372,6 +414,18 @@ export async function setSeasonProgress(formData: FormData): Promise<void> {
     where: { id: season.id },
     data: { watchedCount: clamped },
   });
+  const parent = await db.mediaItem.findUnique({
+    where: { id: mediaItemId },
+    select: { title: true },
+  });
+  if (parent) {
+    logActivity(
+      "episode",
+      clamped >= season.episodeCount
+        ? `Finished S${seasonNumber} of ${parent.title}`
+        : `Watched S${seasonNumber}E${clamped} of ${parent.title}`,
+    );
+  }
   revalidateMedia();
 }
 
@@ -393,4 +447,199 @@ export async function ensureSeasons(formData: FormData): Promise<void> {
     return;
   }
   revalidateMedia();
+}
+
+export type ImportState = { error?: string; imported?: number };
+
+type ImportItem = {
+  title: string;
+  type: string;
+  status: string;
+  rating: number | null;
+  isFavorite: boolean;
+  progressNote: string | null;
+  comment: string | null;
+  tmdbId: number | null;
+  posterUrl: string | null;
+  overview: string | null;
+  releaseDate: string | null;
+  voteAverage: number | null;
+  genres: string[];
+  seasons: {
+    seasonNumber: number;
+    episodeCount: number;
+    watchedCount: number;
+  }[];
+};
+
+export async function importLibrary(
+  _prev: ImportState,
+  formData: FormData,
+): Promise<ImportState> {
+  await requireSession();
+
+  const raw = String(formData.get("json") ?? "").trim();
+  if (!raw) return { error: "Paste an export file's contents first." };
+  if (raw.length > 5_000_000) return { error: "Import file too large." };
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { error: "That is not valid JSON." };
+  }
+
+  const items = (parsed as { items?: unknown }).items;
+  if (!Array.isArray(items) || items.length === 0) {
+    return { error: "No items found in this file." };
+  }
+  if (items.length > 5000) return { error: "Too many items (max 5000)." };
+
+  const existing = await db.mediaItem.findMany({
+    select: { title: true, type: true, tmdbId: true },
+  });
+  const existingKeys = new Set(
+    existing.map((e) => `${e.type}:${e.tmdbId ?? e.title}`),
+  );
+
+  let imported = 0;
+  for (const rawItem of items) {
+    if (imported >= 5000) break;
+    if (rawItem === null || typeof rawItem !== "object") continue;
+    const item = rawItem as Partial<ImportItem>;
+    const title =
+      typeof item.title === "string" ? item.title.trim().slice(0, 200) : "";
+    if (!title) continue;
+    const type =
+      item.type === "MOVIE" || item.type === "SERIES" ? item.type : null;
+    if (!type) continue;
+    const key = `${type}:${typeof item.tmdbId === "number" ? item.tmdbId : title}`;
+    if (existingKeys.has(key)) continue;
+
+    const status = isWatchStatus(item.status) ? item.status : "WANT_TO_WATCH";
+    const rating =
+      typeof item.rating === "number" &&
+      Number.isInteger(item.rating) &&
+      item.rating >= 1 &&
+      item.rating <= 10
+        ? item.rating
+        : null;
+    const seasons = Array.isArray(item.seasons) ? item.seasons : [];
+
+    const created = await db.mediaItem
+      .create({
+        data: {
+          title,
+          type,
+          status,
+          rating,
+          isFavorite: item.isFavorite === true,
+          progressNote:
+            typeof item.progressNote === "string"
+              ? item.progressNote.slice(0, 500) || null
+              : null,
+          comment:
+            typeof item.comment === "string"
+              ? item.comment.slice(0, 500) || null
+              : null,
+          tmdbId:
+            typeof item.tmdbId === "number" &&
+            Number.isInteger(item.tmdbId) &&
+            item.tmdbId > 0
+              ? item.tmdbId
+              : null,
+          posterUrl:
+            typeof item.posterUrl === "string" &&
+            /^https:\/\/[\w.-]+\/[\w./-]+$/.test(item.posterUrl)
+              ? item.posterUrl.slice(0, 300)
+              : null,
+          overview:
+            typeof item.overview === "string"
+              ? item.overview.slice(0, 2000) || null
+              : null,
+          releaseDate:
+            typeof item.releaseDate === "string" &&
+            /^\d{4}-\d{2}-\d{2}$/.test(item.releaseDate)
+              ? item.releaseDate
+              : null,
+          voteAverage:
+            typeof item.voteAverage === "number" &&
+            item.voteAverage >= 0 &&
+            item.voteAverage <= 10
+              ? item.voteAverage
+              : null,
+          genres: Array.isArray(item.genres)
+            ? item.genres
+                .filter((g): g is string => typeof g === "string")
+                .map((g) => g.slice(0, 60))
+                .slice(0, 8)
+            : [],
+        },
+        select: { id: true },
+      })
+      .catch(() => null);
+    if (!created) continue;
+    existingKeys.add(key);
+    imported += 1;
+
+    const seasonRows = seasons
+      .filter(
+        (s) =>
+          s !== null &&
+          typeof s === "object" &&
+          Number.isInteger(s.seasonNumber) &&
+          s.seasonNumber >= 0 &&
+          s.seasonNumber <= 200 &&
+          Number.isInteger(s.episodeCount) &&
+          s.episodeCount >= 0 &&
+          s.episodeCount <= 500,
+      )
+      .map((s) => ({
+        mediaItemId: created.id,
+        seasonNumber: s.seasonNumber,
+        episodeCount: s.episodeCount,
+        watchedCount: Math.min(
+          Math.max(Number.isInteger(s.watchedCount) ? s.watchedCount : 0, 0),
+          s.episodeCount,
+        ),
+      }));
+    if (seasonRows.length > 0) {
+      await db.mediaSeason
+        .createMany({ data: seasonRows, skipDuplicates: true })
+        .catch(() => undefined);
+    }
+  }
+
+  if (imported > 0) revalidateMedia();
+  return { imported };
+}
+
+export async function notifyAiringEpisodes(
+  entries: { key: string; title: string; detail: string }[],
+): Promise<void> {
+  const url = process.env.NTFY_URL;
+  if (!url || !/^https:\/[\w./-]+$/.test(url) || entries.length === 0) {
+    return;
+  }
+
+  for (const entry of entries) {
+    const already = await db.activityEvent.findFirst({
+      where: { kind: "notified", message: entry.key },
+      select: { id: true },
+    });
+    if (already) continue;
+
+    await fetch(url, {
+      method: "POST",
+      body: `SuperMovie: ${entry.title} — ${entry.detail}`,
+      headers: { Title: "New episode" },
+      signal: AbortSignal.timeout(5000),
+    })
+      .then(() =>
+        db.activityEvent.create({
+          data: { kind: "notified", message: entry.key },
+        }),
+      )
+      .catch(() => undefined);
+  }
 }

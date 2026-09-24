@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/", label: "Home" },
   { href: "/library", label: "My Library" },
   { href: "/stats", label: "Stats" },
+  { href: "/books", label: "Books" },
 ];
 
 export function NavLinks() {

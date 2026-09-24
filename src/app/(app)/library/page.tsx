@@ -1,3 +1,4 @@
+import { ImportForm } from "@/modules/media/components/import-form";
 import { LibrarySection } from "@/modules/media/components/library-section";
 import { Pagination } from "@/modules/media/components/pagination";
 import {
@@ -205,6 +206,16 @@ export default async function LibraryPage({
           />
         }
       />
+
+      <div className="flex flex-col gap-3 border-t border-line pt-4">
+        <a
+          href="/api/export"
+          className="self-start text-sm text-muted underline transition hover:text-foreground"
+        >
+          Export library as JSON
+        </a>
+        <ImportForm />
+      </div>
     </div>
   );
 }

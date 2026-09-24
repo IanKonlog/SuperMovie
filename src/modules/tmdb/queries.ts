@@ -932,3 +932,88 @@ export async function fetchRuntimeMinutes(
     return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
   });
 }
+
+export function fetchSimilar(
+  type: "MOVIE" | "SERIES",
+  tmdbId: number,
+): Promise<TmdbSearchResult[]> {
+  return cached(`similar:${type}:${tmdbId}`, 24 * 60 * 60 * 1000, () => {
+    const base = type === "MOVIE" ? "movie" : "tv";
+    return fetchTmdbList(`/${base}/${tmdbId}/similar`, type, 12);
+  });
+}
+
+export async function discoverByMood(
+  genreNamesList: string[],
+  maxRuntimeMinutes: number | null,
+): Promise<
+  {
+    tmdbId: number;
+    title: string;
+    posterUrl: string | null;
+    releaseDate: string | null;
+    voteAverage: number;
+  }[]
+> {
+  const [movieGenres, tvGenres] = await Promise.all([
+    genreNames("MOVIE"),
+    genreNames("SERIES"),
+  ]);
+  const ids = new Set<number>();
+  for (const name of genreNamesList) {
+    for (const [id, genreName] of movieGenres) {
+      if (genreName === name) ids.add(id);
+    }
+    for (const [id, genreName] of tvGenres) {
+      if (genreName === name) ids.add(id);
+    }
+  }
+  if (ids.size === 0) return [];
+
+  const cacheKey = `mood:${[...ids].sort((a, b) => a - b).join(",")}:${maxRuntimeMinutes ?? 0}`;
+  return cached(cacheKey, 60 * 60 * 1000, async () => {
+    const params: Record<string, string> = {
+      with_genres: [...ids].join(","),
+      sort_by: "popularity.desc",
+      "vote_count.gte": "300",
+      include_adult: "false",
+      language: "en-US",
+      page: "1",
+    };
+    if (maxRuntimeMinutes !== null) {
+      params["with_runtime.lte"] = String(maxRuntimeMinutes);
+    }
+    const res = await fetch(tmdbUrl("/discover/movie", params), {
+      headers: tmdbHeaders(),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) {
+      throw new Error(`TMDB discover failed (HTTP ${res.status})`);
+    }
+    const data = (await res.json()) as { results?: unknown };
+    const list = Array.isArray(data.results) ? data.results : [];
+    const out: {
+      tmdbId: number;
+      title: string;
+      posterUrl: string | null;
+      releaseDate: string | null;
+      voteAverage: number;
+    }[] = [];
+    for (const raw of list) {
+      if (out.length >= 12) break;
+      if (raw === null || typeof raw !== "object") continue;
+      const record = raw as RawResult;
+      const tmdbId = boundedNumber(record.id, 1, 100_000_000);
+      const movieTitle = boundedString(record.title, MAX_TITLE);
+      if (tmdbId === null || !movieTitle) continue;
+      out.push({
+        tmdbId,
+        title: movieTitle,
+        posterUrl: posterUrlOrNull(record.poster_path),
+        releaseDate: isoDateOrNull(record.release_date),
+        voteAverage: boundedNumber(record.vote_average, 0, 10) ?? 0,
+      });
+    }
+    return out;
+  });
+}

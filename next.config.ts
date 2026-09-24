@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
         hostname: "i.ytimg.com",
         pathname: "/vi/**",
       },
+      { protocol: "https", hostname: "books.google.com" },
+      { protocol: "https", hostname: "*.googleusercontent.com" },
     ],
   },
 };

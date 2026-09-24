@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { PosterRow } from "@/modules/media/components/poster-row";
+import { db } from "@/lib/db";
+import { ShareButton } from "@/modules/media/components/share-button";
 import { getSeasonsByItemId, getStatsItems } from "@/modules/media/queries";
 import { fetchRuntimeMinutes } from "@/modules/tmdb/queries";
 import { titleHref } from "@/modules/tmdb/links";
@@ -39,11 +41,28 @@ function Bar({
   );
 }
 
+function relativeDay(date: Date): string {
+  const days = Math.floor(
+    (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days} days ago`;
+  return date.toISOString().slice(0, 10);
+}
+
 export default async function StatsPage() {
-  const [items, seasonsByItem] = await Promise.all([
+  const [items, seasonsByItem, activity, share] = await Promise.all([
     getStatsItems(),
     getSeasonsByItemId(),
+    db.activityEvent.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 15,
+      select: { id: true, message: true, createdAt: true },
+    }),
+    db.shareToken.findFirst({ select: { token: true } }),
   ]);
+  const shareToken = share ? `/s/${share.token}` : null;
 
   const completed = items.filter((i) => i.status === "COMPLETED");
   const watching = items.filter((i) => i.status === "WATCHING");
@@ -207,6 +226,33 @@ export default async function StatsPage() {
           />
         </section>
       )}
+
+      {activity.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-bold">Recent activity</h2>
+          <ol className="flex flex-col gap-2">
+            {activity.map((event) => (
+              <li
+                key={event.id}
+                className="flex items-baseline justify-between gap-3 rounded-lg border border-line bg-surface px-3 py-2 text-sm"
+              >
+                <span>{event.message}</span>
+                <span className="shrink-0 text-xs text-muted">
+                  {relativeDay(event.createdAt)}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-lg font-bold">Share your taste</h2>
+        <p className="text-sm text-muted">
+          A public, read-only wall of your top-rated titles and genre profile.
+        </p>
+        <ShareButton activeToken={shareToken} />
+      </section>
 
       <Link
         href="/library"

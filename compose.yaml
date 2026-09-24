@@ -9,6 +9,8 @@ services:
       AUTH_PASSWORD: ${AUTH_PASSWORD:?set AUTH_PASSWORD in .env}
       AUTH_SECURE_COOKIE: ${AUTH_SECURE_COOKIE:-false}
       TMDB_API_KEY: ${TMDB_API_KEY:-}
+      NTFY_URL: ${NTFY_URL:-}
+      GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy

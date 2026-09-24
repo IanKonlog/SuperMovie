@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { Poster } from "./poster";
 import { titleHref } from "@/modules/tmdb/links";
 import { MediaDetailPanel } from "./media-detail-panel";
@@ -33,8 +33,7 @@ export function LibrarySection({
   pagination: React.ReactNode;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = items.find((item) => item.id === selectedId) ?? null;
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLLIElement>(null);
 
   function selectAndReveal(id: string) {
     const next = selectedId === id ? null : id;
@@ -43,7 +42,7 @@ export function LibrarySection({
       requestAnimationFrame(() => {
         panelRef.current?.scrollIntoView({
           behavior: "smooth",
-          block: "center",
+          block: "nearest",
         });
       });
     }
@@ -61,71 +60,71 @@ export function LibrarySection({
           className="grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-6"
         >
           {items.map((item, index) => (
-            <li
-              key={item.id}
-              className="card-enter"
-              style={{ "--i": index } as React.CSSProperties}
-            >
-              <button
-                type="button"
-                onClick={() => selectAndReveal(item.id)}
-                aria-expanded={item.id === selectedId}
-                aria-label={`Manage ${item.title}`}
-                className="relative w-full text-left transition duration-200 ease-out hover:scale-[1.04] hover:drop-shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
+            <Fragment key={item.id}>
+              <li
+                className="card-enter"
+                style={{ "--i": index } as React.CSSProperties}
               >
-                <Poster
-                  posterUrl={item.posterUrl}
-                  title={item.title}
-                  size={160}
-                />
-                {item.isFavorite && (
-                  <span
-                    aria-label="Favorite"
-                    className="absolute top-1 right-1 text-sm text-amber-400 drop-shadow"
-                  >
-                    ★
-                  </span>
-                )}
-              </button>
-              {item.tmdbId !== null ? (
-                <Link
-                  href={titleHref(item.type, item.tmdbId)}
-                  aria-label={`Open ${item.title} page`}
-                  className="mt-1.5 block line-clamp-1 text-xs font-medium underline-offset-2 transition hover:text-accent hover:underline"
+                <button
+                  type="button"
+                  onClick={() => selectAndReveal(item.id)}
+                  aria-expanded={item.id === selectedId}
+                  aria-label={`Manage ${item.title}`}
+                  className="relative w-full text-left transition duration-200 ease-out hover:scale-[1.04] hover:drop-shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
                 >
-                  {item.title} ↗
-                </Link>
-              ) : (
-                <p className="mt-1.5 line-clamp-1 text-xs font-medium">
-                  {item.title}
-                </p>
-              )}
-              <p className="flex items-center gap-1.5 text-xs text-muted">
-                {item.voteAverage !== null && item.voteAverage > 0 && (
-                  <>
-                    <span className="text-amber-400">★</span>
-                    <span>{item.voteAverage.toFixed(1)}</span>
-                    <span>·</span>
-                  </>
+                  <Poster
+                    posterUrl={item.posterUrl}
+                    title={item.title}
+                    size={160}
+                  />
+                  {item.isFavorite && (
+                    <span
+                      aria-label="Favorite"
+                      className="absolute top-1 right-1 text-sm text-amber-400 drop-shadow"
+                    >
+                      ★
+                    </span>
+                  )}
+                </button>
+                {item.tmdbId !== null ? (
+                  <Link
+                    href={titleHref(item.type, item.tmdbId)}
+                    aria-label={`Open ${item.title} page`}
+                    className="mt-1.5 block line-clamp-1 text-xs font-medium underline-offset-2 transition hover:text-accent hover:underline"
+                  >
+                    {item.title} ↗
+                  </Link>
+                ) : (
+                  <p className="mt-1.5 line-clamp-1 text-xs font-medium">
+                    {item.title}
+                  </p>
                 )}
-                <span
-                  className={`inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[item.status]}`}
-                />
-                {WATCH_STATUS_LABELS[item.status]}
-              </p>
-            </li>
+                <p className="flex items-center gap-1.5 text-xs text-muted">
+                  {item.voteAverage !== null && item.voteAverage > 0 && (
+                    <>
+                      <span className="text-amber-400">★</span>
+                      <span>{item.voteAverage.toFixed(1)}</span>
+                      <span>·</span>
+                    </>
+                  )}
+                  <span
+                    className={`inline-block h-1.5 w-1.5 rounded-full ${STATUS_DOT[item.status]}`}
+                  />
+                  {WATCH_STATUS_LABELS[item.status]}
+                </p>
+              </li>
+              {item.id === selectedId && (
+                <li ref={panelRef} className="pop-enter col-span-full pb-2">
+                  <MediaDetailPanel
+                    item={item}
+                    seasons={seasonsByItem[item.id] ?? []}
+                    onClose={() => setSelectedId(null)}
+                  />
+                </li>
+              )}
+            </Fragment>
           ))}
         </ul>
-      )}
-
-      {selected && (
-        <div ref={panelRef} className="pop-enter">
-          <MediaDetailPanel
-            item={selected}
-            seasons={seasonsByItem[selected.id] ?? []}
-            onClose={() => setSelectedId(null)}
-          />
-        </div>
       )}
 
       {pagination}

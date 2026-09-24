@@ -272,8 +272,8 @@ export default async function TitlePage({
       )}
 
       {/* Main + sidebar */}
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="flex min-w-0 flex-col gap-10">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:grid-rows-[auto_auto_1fr]">
+        <div className="flex min-w-0 flex-col gap-10 lg:col-start-1 lg:row-start-1">
           {title.type === "SERIES" ? (
             <SeriesVideosSection
               tmdbId={title.tmdbId}
@@ -300,29 +300,9 @@ export default async function TitlePage({
               </section>
             )
           )}
-
-          {title.reviews.length > 0 && (
-            <section
-              aria-label="Reviews"
-              className="card-enter flex flex-col gap-3"
-            >
-              <h2 className="text-lg font-bold">Reviews</h2>
-              <div className="columns-1 gap-3 xl:columns-2">
-                {title.reviews.map((review, i) => (
-                  <ReviewCard
-                    key={`${review.author}-${i}`}
-                    author={review.author}
-                    createdAt={review.createdAt}
-                    rating={review.rating}
-                    content={review.content}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
         </div>
 
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
+        <aside className="flex flex-col gap-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start lg:sticky lg:top-20">
           {title.nextEpisode && (
             <section
               aria-label="Next up"
@@ -499,6 +479,25 @@ export default async function TitlePage({
             </dl>
           </section>
         </aside>
+        {title.reviews.length > 0 && (
+          <section
+            aria-label="Reviews"
+            className="card-enter flex flex-col gap-3 lg:col-start-1 lg:row-start-2"
+          >
+            <h2 className="text-lg font-bold">Reviews</h2>
+            <div className="columns-1 gap-3 xl:columns-2">
+              {title.reviews.map((review, i) => (
+                <ReviewCard
+                  key={`${review.author}-${i}`}
+                  author={review.author}
+                  createdAt={review.createdAt}
+                  rating={review.rating}
+                  content={review.content}
+                />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

@@ -23,12 +23,14 @@ export function LibrarySection({
   page,
   items,
   seasonsByItem,
+  watchedByItem,
   emptyMessage,
   pagination,
 }: {
   page: number;
   items: MediaItemDTO[];
   seasonsByItem: Record<string, SeasonDTO[]>;
+  watchedByItem: Record<string, string[]>;
   emptyMessage: string;
   pagination: React.ReactNode;
 }) {
@@ -118,6 +120,7 @@ export function LibrarySection({
                   <MediaDetailPanel
                     item={item}
                     seasons={seasonsByItem[item.id] ?? []}
+                    watchedKeys={watchedByItem[item.id] ?? []}
                     onClose={() => setSelectedId(null)}
                   />
                 </li>

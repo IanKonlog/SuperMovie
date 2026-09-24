@@ -11,6 +11,7 @@ import {
   getLibraryGenreCounts,
   getMediaStats,
   getSeasonsByItemId,
+  getWatchedEpisodeKeys,
   listLibraryPage,
 } from "@/modules/media/queries";
 import Link from "next/link";
@@ -40,12 +41,14 @@ export default async function LibraryPage({
   const q = qParam || undefined;
   const page = Math.max(1, Number(first(params.page)) || 1);
 
-  const [library, stats, seasonsByItem, genreCounts] = await Promise.all([
-    listLibraryPage({ status, type, q, genre, favoritesOnly, page }),
-    getMediaStats(),
-    getSeasonsByItemId(),
-    getLibraryGenreCounts(),
-  ]);
+  const [library, stats, seasonsByItem, genreCounts, watchedByItem] =
+    await Promise.all([
+      listLibraryPage({ status, type, q, genre, favoritesOnly, page }),
+      getMediaStats(),
+      getSeasonsByItemId(),
+      getLibraryGenreCounts(),
+      getWatchedEpisodeKeys(),
+    ]);
 
   const seasonsRecord = Object.fromEntries(seasonsByItem);
 
@@ -193,6 +196,7 @@ export default async function LibraryPage({
         page={library.page}
         items={library.items}
         seasonsByItem={seasonsRecord}
+        watchedByItem={watchedByItem}
         emptyMessage={
           q
             ? `No matches for "${q}".`

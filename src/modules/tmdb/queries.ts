@@ -1017,3 +1017,43 @@ export async function discoverByMood(
     return out;
   });
 }
+
+export type SeasonEpisode = {
+  episodeNumber: number;
+  name: string;
+  airDate: string | null;
+};
+
+export async function fetchSeasonEpisodes(
+  tmdbId: number,
+  seasonNumber: number,
+): Promise<SeasonEpisode[]> {
+  return cached(
+    `episodes:${tmdbId}:${seasonNumber}`,
+    24 * 60 * 60 * 1000,
+    async () => {
+      const res = await fetch(
+        tmdbUrl(`/tv/${tmdbId}/season/${seasonNumber}`, { language: "en-US" }),
+        { headers: tmdbHeaders(), signal: AbortSignal.timeout(8000) },
+      );
+      if (!res.ok) {
+        throw new Error(`TMDB season failed (HTTP ${res.status})`);
+      }
+      const data = (await res.json()) as { episodes?: unknown };
+      const list = Array.isArray(data.episodes) ? data.episodes : [];
+      const out: SeasonEpisode[] = [];
+      for (const raw of list) {
+        if (raw === null || typeof raw !== "object") continue;
+        const record = raw as RawResult;
+        const episodeNumber = boundedNumber(record.episode_number, 1, 500);
+        if (episodeNumber === null) continue;
+        out.push({
+          episodeNumber,
+          name: boundedString(record.name, 150) || `Episode ${episodeNumber}`,
+          airDate: isoDateOrNull(record.air_date),
+        });
+      }
+      return out;
+    },
+  );
+}

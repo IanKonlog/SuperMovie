@@ -18,10 +18,12 @@ const initialState: ActionState = {};
 export function MediaDetailPanel({
   item,
   seasons,
+  watchedKeys,
   onClose,
 }: {
   item: MediaItemDTO;
   seasons: SeasonDTO[];
+  watchedKeys: string[];
   onClose: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -217,7 +219,8 @@ export function MediaDetailPanel({
           <SeasonTracker
             mediaItemId={item.id}
             seasons={seasons}
-            canBackfill={item.tmdbId !== null}
+            watchedKeys={watchedKeys}
+            tmdbId={item.tmdbId}
           />
         </div>
       )}

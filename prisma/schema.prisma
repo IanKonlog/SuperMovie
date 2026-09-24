@@ -44,6 +44,7 @@ model MediaItem {
   genres      String[]
 
   seasons MediaSeason[]
+  watchedEpisodes EpisodeWatched[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -114,4 +115,17 @@ model MediaSeason {
   mediaItem    MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
 
   @@unique([mediaItemId, seasonNumber])
+}
+
+// Episode-level watch state. Source of truth; MediaSeason.watchedCount
+// is a cache kept in sync inside the same transaction as these rows.
+model EpisodeWatched {
+  id           String    @id @default(cuid())
+  mediaItemId  String
+  seasonNumber Int
+  episodeNumber Int
+  mediaItem    MediaItem @relation(fields: [mediaItemId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaItemId, seasonNumber, episodeNumber])
+  @@index([mediaItemId])
 }

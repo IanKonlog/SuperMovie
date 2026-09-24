@@ -32,6 +32,75 @@ function logActivity(kind: string, message: string) {
     .catch(() => undefined);
 }
 
+async function setSeasonWatchedState(
+  mediaItemId: string,
+  seasonNumber: number,
+  watched: boolean,
+): Promise<void> {
+  await db.$transaction(async (tx) => {
+    await tx.episodeWatched.deleteMany({
+      where: { mediaItemId, seasonNumber },
+    });
+    let count = 0;
+    if (watched) {
+      const season = await tx.mediaSeason.findUnique({
+        where: { mediaItemId_seasonNumber: { mediaItemId, seasonNumber } },
+        select: { episodeCount: true },
+      });
+      if (season && season.episodeCount > 0) {
+        await tx.episodeWatched.createMany({
+          data: Array.from({ length: season.episodeCount }, (_, i) => ({
+            mediaItemId,
+            seasonNumber,
+            episodeNumber: i + 1,
+          })),
+        });
+        count = season.episodeCount;
+      }
+    }
+    await tx.mediaSeason.updateMany({
+      where: { mediaItemId, seasonNumber },
+      data: { watchedCount: count },
+    });
+  });
+}
+
+async function setEpisodeWatchedState(
+  mediaItemId: string,
+  seasonNumber: number,
+  episodeNumber: number,
+  watched: boolean,
+): Promise<void> {
+  await db.$transaction(async (tx) => {
+    if (watched) {
+      await tx.episodeWatched
+        .upsert({
+          where: {
+            mediaItemId_seasonNumber_episodeNumber: {
+              mediaItemId,
+              seasonNumber,
+              episodeNumber,
+            },
+          },
+          update: {},
+          create: { mediaItemId, seasonNumber, episodeNumber },
+        })
+        .catch(() => undefined);
+    } else {
+      await tx.episodeWatched.deleteMany({
+        where: { mediaItemId, seasonNumber, episodeNumber },
+      });
+    }
+    const count = await tx.episodeWatched.count({
+      where: { mediaItemId, seasonNumber },
+    });
+    await tx.mediaSeason.updateMany({
+      where: { mediaItemId, seasonNumber },
+      data: { watchedCount: count },
+    });
+  });
+}
+
 function optionalInt(
   value: FormDataEntryValue | null,
 ): number | null | "invalid" {
@@ -183,18 +252,13 @@ export async function addMediaItem(
     const maxSeason = seasons.reduce((m, s) => Math.max(m, s.seasonNumber), 0);
     const effective =
       currentSeason === null ? null : Math.min(currentSeason, maxSeason);
-    const watchedUpdates = seasons
-      .filter((s) =>
-        effective === null ? true : markPrevious && s.seasonNumber < effective,
-      )
-      .map((s) =>
-        db.mediaSeason.update({
-          where: { id: s.id },
-          data: { watchedCount: s.episodeCount },
-        }),
+    const previousSeasons = seasons.filter((s) =>
+      effective === null ? true : markPrevious && s.seasonNumber < effective,
+    );
+    for (const s of previousSeasons) {
+      await setSeasonWatchedState(createdId, s.seasonNumber, true).catch(
+        () => undefined,
       );
-    if (watchedUpdates.length > 0) {
-      await db.$transaction(watchedUpdates).catch(() => undefined);
     }
   }
 
@@ -219,6 +283,18 @@ async function seedSeasons(
     })),
     skipDuplicates: true,
   });
+  if (allWatched) {
+    await db.episodeWatched.createMany({
+      data: seasons.flatMap((s) =>
+        Array.from({ length: s.episodeCount }, (_, i) => ({
+          mediaItemId,
+          seasonNumber: s.seasonNumber,
+          episodeNumber: i + 1,
+        })),
+      ),
+      skipDuplicates: true,
+    });
+  }
 }
 
 export async function updateMediaItem(
@@ -321,16 +397,13 @@ export async function updateMediaItem(
       if (item?.type === "SERIES") {
         const seasons = await db.mediaSeason.findMany({
           where: { mediaItemId: id },
-          select: { id: true, episodeCount: true },
+          select: { seasonNumber: true },
         });
-        await db.$transaction(
-          seasons.map((season) =>
-            db.mediaSeason.update({
-              where: { id: season.id },
-              data: { watchedCount: season.episodeCount },
-            }),
-          ),
-        );
+        for (const season of seasons) {
+          await setSeasonWatchedState(id, season.seasonNumber, true).catch(
+            () => undefined,
+          );
+        }
       }
     }
   } catch {
@@ -393,38 +466,57 @@ function boundedInt(
   return n;
 }
 
-export async function setSeasonProgress(formData: FormData): Promise<void> {
+export async function setEpisodeWatched(formData: FormData): Promise<void> {
   await requireSession();
 
   const mediaItemId = String(formData.get("mediaItemId") ?? "");
   const seasonNumber = boundedInt(formData.get("seasonNumber"), 200);
-  const watchedCount = boundedInt(formData.get("watchedCount"), 500);
-  if (!mediaItemId || seasonNumber === null || watchedCount === null) return;
+  const episodeNumber = boundedInt(formData.get("episodeNumber"), 500);
+  const watched = formData.get("watched") === "true";
+  if (!mediaItemId || seasonNumber === null || episodeNumber === null) {
+    return;
+  }
 
-  const season = await db.mediaSeason.findUnique({
-    where: {
-      mediaItemId_seasonNumber: { mediaItemId, seasonNumber },
-    },
-    select: { id: true, episodeCount: true },
-  });
-  if (!season) return;
-
-  const clamped = Math.min(watchedCount, season.episodeCount);
-  await db.mediaSeason.updateMany({
-    where: { id: season.id },
-    data: { watchedCount: clamped },
-  });
+  await setEpisodeWatchedState(
+    mediaItemId,
+    seasonNumber,
+    episodeNumber,
+    watched,
+  );
   const parent = await db.mediaItem.findUnique({
     where: { id: mediaItemId },
     select: { title: true },
   });
-  if (parent) {
+  if (parent && watched) {
     logActivity(
       "episode",
-      clamped >= season.episodeCount
-        ? `Finished S${seasonNumber} of ${parent.title}`
-        : `Watched S${seasonNumber}E${clamped} of ${parent.title}`,
+      `Watched S${seasonNumber}E${episodeNumber} of ${parent.title}`,
     );
+  }
+  revalidateMedia();
+}
+
+export async function setSeasonWatched(formData: FormData): Promise<void> {
+  await requireSession();
+
+  const mediaItemId = String(formData.get("mediaItemId") ?? "");
+  const seasonNumber = boundedInt(formData.get("seasonNumber"), 200);
+  const watched = formData.get("watched") === "true";
+  if (!mediaItemId || seasonNumber === null) return;
+
+  const season = await db.mediaSeason.findUnique({
+    where: { mediaItemId_seasonNumber: { mediaItemId, seasonNumber } },
+    select: { episodeCount: true },
+  });
+  if (!season) return;
+
+  await setSeasonWatchedState(mediaItemId, seasonNumber, watched);
+  const parent = await db.mediaItem.findUnique({
+    where: { id: mediaItemId },
+    select: { title: true },
+  });
+  if (parent && watched) {
+    logActivity("episode", `Finished S${seasonNumber} of ${parent.title}`);
   }
   revalidateMedia();
 }

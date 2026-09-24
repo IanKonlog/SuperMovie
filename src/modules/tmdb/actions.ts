@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth";
 import { isMediaType } from "@/modules/media/constants";
 import {
   discoverByMood,
+  fetchSeasonEpisodes,
   fetchSeriesSeasons,
   fetchTrending,
   searchTmdb,
@@ -130,5 +131,32 @@ export async function discoverByMoodAction(
     return { results };
   } catch {
     return { results: [], error: "Mood search is unavailable right now." };
+  }
+}
+
+export type SeasonEpisodesState = {
+  episodes: { episodeNumber: number; name: string; airDate: string | null }[];
+  error?: string;
+};
+
+export async function fetchSeasonEpisodesAction(
+  tmdbId: unknown,
+  seasonNumber: unknown,
+): Promise<SeasonEpisodesState> {
+  await requireSession();
+
+  const id = Number(tmdbId);
+  const season = Number(seasonNumber);
+  if (!Number.isInteger(id) || id < 1 || id > 100_000_000) {
+    return { episodes: [], error: "Invalid id." };
+  }
+  if (!Number.isInteger(season) || season < 1 || season > 200) {
+    return { episodes: [], error: "Invalid season." };
+  }
+
+  try {
+    return { episodes: await fetchSeasonEpisodes(id, season) };
+  } catch {
+    return { episodes: [], error: "Episode data is unavailable right now." };
   }
 }

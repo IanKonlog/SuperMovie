@@ -274,3 +274,17 @@ export async function getWantToWatch(): Promise<StatsItem[]> {
     },
   });
 }
+
+export async function getWatchedEpisodeKeys(): Promise<
+  Record<string, string[]>
+> {
+  const rows = await db.episodeWatched.findMany({
+    select: { mediaItemId: true, seasonNumber: true, episodeNumber: true },
+  });
+  const byItem: Record<string, string[]> = {};
+  for (const row of rows) {
+    const list = (byItem[row.mediaItemId] ??= []);
+    list.push(`S${row.seasonNumber}E${row.episodeNumber}`);
+  }
+  return byItem;
+}

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { PosterRow } from "@/modules/media/components/poster-row";
+import { hideRecommendation } from "@/modules/media/actions";
 import { QuickAdd } from "@/modules/media/components/quick-add";
 import {
   isTouchOnly,
@@ -29,9 +30,23 @@ export function RecommendationsSection({
 }) {
   const panel = useHoverPanel<Selection>();
   const [visibleCount, setVisibleCount] = useState(VISIBLE_STEP);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [, startTransition] = useTransition();
+
+  function hide(rec: { key: string }) {
+    if (panel.active?.key === rec.key) panel.close();
+    setDismissed((prev) => new Set(prev).add(rec.key));
+    const formData = new FormData();
+    formData.set("key", rec.key);
+    startTransition(async () => {
+      await hideRecommendation(formData);
+    });
+  }
 
   if (recommendations.length === 0) return null;
-  const visible = recommendations.slice(0, visibleCount);
+  const visible = recommendations
+    .filter((rec) => !dismissed.has(`${rec.type}:${rec.tmdbId}`))
+    .slice(0, visibleCount);
 
   return (
     <section aria-label="Recommendations" className="flex flex-col gap-3">
@@ -63,6 +78,7 @@ export function RecommendationsSection({
               anchor,
             }),
           onHoverEnd: panel.hoverClose,
+          onDismiss: () => hide({ key: `${rec.type}:${rec.tmdbId}` }),
         }))}
       />
       {visibleCount < recommendations.length && (

@@ -318,6 +318,20 @@ export async function updateMediaItem(
   return { success: true };
 }
 
+export async function hideRecommendation(formData: FormData): Promise<void> {
+  await requireSession();
+
+  const key = String(formData.get("key") ?? "");
+  if (!/^(MOVIE|SERIES):[1-9][0-9]{0,8}$/.test(key)) return;
+
+  await db.hiddenRecommendation.upsert({
+    where: { key },
+    update: {},
+    create: { key },
+  });
+  revalidateMedia();
+}
+
 export async function deleteMediaItem(formData: FormData): Promise<void> {
   await requireSession();
 

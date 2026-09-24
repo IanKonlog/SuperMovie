@@ -3,6 +3,7 @@ import { CurrentlyWatching } from "@/modules/media/components/currently-watching
 import { GenreProfile } from "@/modules/media/components/genre-profile";
 import {
   getGenreProfile,
+  getHiddenRecommendationKeys,
   getLibraryTmdbKeys,
   getRecommendationSources,
   getSeasonsByItemId,
@@ -34,14 +35,21 @@ export default async function HomePage({
   const genre = genreParam || undefined;
   const matchesGenre = (genres: string[]) =>
     genre === undefined || genres.includes(genre);
-  const [watching, genreProfile, sources, libraryKeys, seasonsByItem] =
-    await Promise.all([
-      listMediaItems({ status: "WATCHING" }),
-      getGenreProfile(),
-      getRecommendationSources(),
-      getLibraryTmdbKeys(),
-      getSeasonsByItemId(),
-    ]);
+  const [
+    watching,
+    genreProfile,
+    sources,
+    libraryKeys,
+    seasonsByItem,
+    hiddenKeys,
+  ] = await Promise.all([
+    listMediaItems({ status: "WATCHING" }),
+    getGenreProfile(),
+    getRecommendationSources(),
+    getLibraryTmdbKeys(),
+    getSeasonsByItemId(),
+    getHiddenRecommendationKeys(),
+  ]);
 
   const watchingFiltered = watching.filter((item) => matchesGenre(item.genres));
 
@@ -58,7 +66,7 @@ export default async function HomePage({
             rating: s.rating,
             title: s.title,
           })),
-          libraryKeys,
+          [...libraryKeys, ...hiddenKeys],
         ).catch(() => [])
       : Promise.resolve([]),
   ]);

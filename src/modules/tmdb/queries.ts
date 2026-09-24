@@ -344,21 +344,51 @@ export async function getRecommendations(
     }
   }
 
-  return [...scored.values()]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(({ item, type, because }) => ({
-      tmdbId: item.tmdbId,
-      type,
-      title: item.title,
-      posterUrl: item.posterUrl,
-      backdropUrl: item.backdropUrl,
-      overview: item.overview || null,
-      releaseDate: item.releaseDate,
-      voteAverage: item.voteAverage,
-      genres: item.genres,
-      because: [...because],
-    }));
+  const sorted = [...scored.values()].sort((a, b) => b.score - a.score);
+
+  // Daily rotation: shuffle inside equal-score tiers so the shelf is fresh
+  // each day without ever promoting weak matches over strong ones.
+  const today = new Date().toISOString().slice(0, 10);
+  let seed = 1779033703;
+  for (let i = 0; i < today.length; i++) {
+    seed = Math.imul(seed ^ today.charCodeAt(i), 3432918353);
+  }
+  const tiers: (typeof sorted)[] = [];
+  for (const entry of sorted) {
+    const bucket = Math.round(entry.score * 4) / 4;
+    const last = tiers[tiers.length - 1];
+    if (last && Math.round(last[0].score * 4) / 4 === bucket) {
+      last.push(entry);
+    } else {
+      tiers.push([entry]);
+    }
+  }
+  const rotated = tiers.flatMap((tier) => {
+    if (tier.length < 2) return tier;
+    const rand = () => {
+      seed = Math.imul(seed ^ (seed >>> 15), seed | 1);
+      seed ^= seed + Math.imul(seed ^ (seed >>> 7), seed | 61);
+      return ((seed ^ (seed >>> 14)) >>> 0) / 4294967296;
+    };
+    for (let i = tier.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [tier[i], tier[j]] = [tier[j], tier[i]];
+    }
+    return tier;
+  });
+
+  return rotated.slice(0, limit).map(({ item, type, because }) => ({
+    tmdbId: item.tmdbId,
+    type,
+    title: item.title,
+    posterUrl: item.posterUrl,
+    backdropUrl: item.backdropUrl,
+    overview: item.overview || null,
+    releaseDate: item.releaseDate,
+    voteAverage: item.voteAverage,
+    genres: item.genres,
+    because: [...because],
+  }));
 }
 
 const WATCH_REGION = "US";

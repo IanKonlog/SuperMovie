@@ -113,14 +113,25 @@ export type RecommendationSourceItem = {
 export async function getRecommendationSources(): Promise<
   RecommendationSourceItem[]
 > {
-  const rows = await db.mediaItem.findMany({
-    where: { rating: { gte: 7 }, tmdbId: { not: null } },
-    orderBy: [{ rating: "desc" }, { updatedAt: "desc" }],
-    take: 8,
-    select: { tmdbId: true, type: true, rating: true, title: true },
-  });
-  return rows.flatMap((row) =>
-    row.tmdbId === null || row.rating === null
+  const select = { tmdbId: true, type: true, rating: true, title: true };
+  const [topRows, recentRows] = await Promise.all([
+    db.mediaItem.findMany({
+      where: { rating: { gte: 7 }, tmdbId: { not: null } },
+      orderBy: [{ rating: "desc" }, { updatedAt: "desc" }],
+      take: 8,
+      select,
+    }),
+    // Reactive seeds: freshly rated titles steer the shelf immediately.
+    db.mediaItem.findMany({
+      where: { rating: { gte: 5 }, tmdbId: { not: null } },
+      orderBy: { updatedAt: "desc" },
+      take: 3,
+      select,
+    }),
+  ]);
+
+  function map(row: (typeof topRows)[number]) {
+    return row.tmdbId === null || row.rating === null
       ? []
       : [
           {
@@ -129,8 +140,28 @@ export async function getRecommendationSources(): Promise<
             rating: row.rating,
             title: row.title,
           },
-        ],
-  );
+        ];
+  }
+
+  const merged: RecommendationSourceItem[] = [];
+  const seen = new Set<string>();
+  for (const row of [...topRows, ...recentRows]) {
+    if (merged.length >= 10) break;
+    const item = map(row)[0];
+    if (!item) continue;
+    const key = `${item.type}:${item.tmdbId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+  }
+  return merged;
+}
+
+export async function getHiddenRecommendationKeys(): Promise<string[]> {
+  const rows = await db.hiddenRecommendation.findMany({
+    select: { key: true },
+  });
+  return rows.map((row) => row.key);
 }
 
 export async function getLibraryTmdbKeys(): Promise<string[]> {

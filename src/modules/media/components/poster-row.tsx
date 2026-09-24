@@ -19,6 +19,7 @@ export type PosterRowItem = {
     width: number;
     height: number;
   }) => void;
+  onDismiss?: () => void;
   onHoverStart?: (anchor: {
     left: number;
     top: number;
@@ -71,32 +72,44 @@ export function PosterRow({ items }: { items: PosterRowItem[] }) {
           return (
             <li key={item.key} className="w-36 shrink-0 sm:w-40">
               {item.href ? (
-                <Link
-                  href={item.href}
-                  onMouseEnter={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    item.onHoverStart?.({
-                      left: rect.left,
-                      top: rect.top,
-                      width: rect.width,
-                      height: rect.height,
-                    });
-                  }}
-                  onMouseLeave={item.onHoverEnd}
-                  onFocus={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    item.onHoverStart?.({
-                      left: rect.left,
-                      top: rect.top,
-                      width: rect.width,
-                      height: rect.height,
-                    });
-                  }}
-                  onBlur={item.onHoverEnd}
-                  className="block w-full"
-                >
-                  {content}
-                </Link>
+                <div className="relative">
+                  <Link
+                    href={item.href}
+                    onMouseEnter={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      item.onHoverStart?.({
+                        left: rect.left,
+                        top: rect.top,
+                        width: rect.width,
+                        height: rect.height,
+                      });
+                    }}
+                    onMouseLeave={item.onHoverEnd}
+                    onFocus={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      item.onHoverStart?.({
+                        left: rect.left,
+                        top: rect.top,
+                        width: rect.width,
+                        height: rect.height,
+                      });
+                    }}
+                    onBlur={item.onHoverEnd}
+                    className="block w-full"
+                  >
+                    {content}
+                  </Link>
+                  {item.onDismiss && (
+                    <button
+                      type="button"
+                      aria-label={`Dismiss ${item.title}`}
+                      onClick={item.onDismiss}
+                      className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-[10px] text-white opacity-0 transition group-hover:opacity-100 hover:bg-black"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               ) : item.onSelect ? (
                 <button
                   type="button"

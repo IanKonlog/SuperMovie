@@ -53,6 +53,13 @@ model MediaItem {
   @@index([tmdbId])
 }
 
+// Recommendations the user dismissed from the "For you" shelf.
+model HiddenRecommendation {
+  id       String   @id @default(cuid())
+  key      String   @unique // "<MOVIE|SERIES>:<tmdbId>"
+  hiddenAt DateTime @default(now())
+}
+
 // Per-season progress for series. Seasons come from TMDB; manual series have none.
 model MediaSeason {
   id           String    @id @default(cuid())

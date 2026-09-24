@@ -224,3 +224,53 @@ export async function getLibraryGenreCounts(): Promise<GenreCount[]> {
     .map(([genre, count]) => ({ genre, count }))
     .sort((a, b) => b.count - a.count);
 }
+
+export type StatsItem = {
+  id: string;
+  title: string;
+  type: MediaTypeValue;
+  status: WatchStatusValue;
+  rating: number | null;
+  isFavorite: boolean;
+  tmdbId: number | null;
+  posterUrl: string | null;
+  releaseDate: string | null;
+  genres: string[];
+};
+
+export async function getStatsItems(): Promise<StatsItem[]> {
+  return db.mediaItem.findMany({
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      status: true,
+      rating: true,
+      isFavorite: true,
+      tmdbId: true,
+      posterUrl: true,
+      releaseDate: true,
+      genres: true,
+    },
+  });
+}
+
+export async function getWantToWatch(): Promise<StatsItem[]> {
+  return db.mediaItem.findMany({
+    where: { status: "WANT_TO_WATCH" },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      status: true,
+      rating: true,
+      isFavorite: true,
+      tmdbId: true,
+      posterUrl: true,
+      releaseDate: true,
+      genres: true,
+    },
+  });
+}

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { CurrentlyWatching } from "@/modules/media/components/currently-watching";
+import { PosterRow } from "@/modules/media/components/poster-row";
+import { RandomPick } from "@/modules/media/components/random-pick";
 import { GenreProfile } from "@/modules/media/components/genre-profile";
 import {
   getGenreProfile,
@@ -7,9 +9,15 @@ import {
   getLibraryTmdbKeys,
   getRecommendationSources,
   getSeasonsByItemId,
+  getWantToWatch,
   listMediaItems,
 } from "@/modules/media/queries";
-import { fetchTrending, getRecommendations } from "@/modules/tmdb/queries";
+import {
+  fetchNextEpisode,
+  fetchTrending,
+  getRecommendations,
+} from "@/modules/tmdb/queries";
+import { titleHref } from "@/modules/tmdb/links";
 import {
   HeroCarousel,
   type HeroSlide,
@@ -23,6 +31,16 @@ type SearchParams = { [key: string]: string | string[] | undefined };
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function airingWindow() {
+  const now = Date.now();
+  return {
+    today: new Date(now).toISOString().slice(0, 10),
+    horizon: new Date(now + 14 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10),
+  };
 }
 
 export default async function HomePage({
@@ -42,6 +60,7 @@ export default async function HomePage({
     libraryKeys,
     seasonsByItem,
     hiddenKeys,
+    wantToWatch,
   ] = await Promise.all([
     listMediaItems({ status: "WATCHING" }),
     getGenreProfile(),
@@ -49,7 +68,24 @@ export default async function HomePage({
     getLibraryTmdbKeys(),
     getSeasonsByItemId(),
     getHiddenRecommendationKeys(),
+    getWantToWatch(),
   ]);
+
+  const returningSoon = (
+    await Promise.all(
+      watching
+        .filter((item) => item.tmdbId !== null)
+        .map((item) =>
+          fetchNextEpisode(item.tmdbId as number)
+            .then((next) => ({ item, next }))
+            .catch(() => ({ item, next: null })),
+        ),
+    )
+  ).filter(({ next }) => {
+    if (next?.airDate === null || next?.airDate === undefined) return false;
+    const { today, horizon } = airingWindow();
+    return next.airDate >= today && next.airDate <= horizon;
+  });
 
   const watchingFiltered = watching.filter((item) => matchesGenre(item.genres));
 
@@ -121,34 +157,55 @@ export default async function HomePage({
     <div className="page-enter flex flex-col gap-7">
       <HeroCarousel slides={featured} />
 
-      {genreChips.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href={genre ? "/" : "#"}
-            className={`rounded-full px-3 py-1 text-xs transition ${
-              genre === undefined
-                ? "bg-accent font-medium text-white"
-                : "border border-line text-muted hover:bg-surface-2"
-            }`}
-          >
-            All genres
-          </Link>
-          {genreChips.map(([name, count]) => (
+      <div className="flex flex-wrap items-center gap-2">
+        <RandomPick items={wantToWatch} />
+        {genreChips.length > 0 && (
+          <div className="flex flex-wrap gap-2">
             <Link
-              key={name}
-              href={
-                genre === name ? "/" : `/?genre=${encodeURIComponent(name)}`
-              }
+              href={genre ? "/" : "#"}
               className={`rounded-full px-3 py-1 text-xs transition ${
-                genre === name
+                genre === undefined
                   ? "bg-accent font-medium text-white"
                   : "border border-line text-muted hover:bg-surface-2"
               }`}
             >
-              {name} ({count})
+              All genres
             </Link>
-          ))}
-        </div>
+            {genreChips.map(([name, count]) => (
+              <Link
+                key={name}
+                href={
+                  genre === name ? "/" : `/?genre=${encodeURIComponent(name)}`
+                }
+                className={`rounded-full px-3 py-1 text-xs transition ${
+                  genre === name
+                    ? "bg-accent font-medium text-white"
+                    : "border border-line text-muted hover:bg-surface-2"
+                }`}
+              >
+                {name} ({count})
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {returningSoon.length > 0 && (
+        <section aria-label="Returning soon" className="flex flex-col gap-2">
+          <h2 className="text-lg font-bold">Returning soon</h2>
+          <PosterRow
+            items={returningSoon.map(({ item, next }) => ({
+              key: item.id,
+              posterUrl: item.posterUrl,
+              title: item.title,
+              badge: `S${next?.seasonNumber}E${next?.episodeNumber} · ${next?.airDate}`,
+              href:
+                item.tmdbId !== null
+                  ? titleHref(item.type, item.tmdbId)
+                  : undefined,
+            }))}
+          />
+        </section>
       )}
 
       <CurrentlyWatching

@@ -876,3 +876,59 @@ export async function getPersonPage(personId: number): Promise<PersonDetails> {
     };
   });
 }
+
+export type NextEpisodeInfo = {
+  seasonNumber: number;
+  episodeNumber: number;
+  airDate: string | null;
+  name: string;
+};
+
+export async function fetchNextEpisode(
+  tmdbId: number,
+): Promise<NextEpisodeInfo | null> {
+  return cached(`nextEpisode:${tmdbId}`, 12 * 60 * 60 * 1000, async () => {
+    const res = await fetch(tmdbUrl(`/tv/${tmdbId}`, { language: "en-US" }), {
+      headers: tmdbHeaders(),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) {
+      throw new Error(`TMDB tv details failed (HTTP ${res.status})`);
+    }
+    const data = (await res.json()) as RawResult;
+    const ref = parseEpisodeRef(data.next_episode_to_air);
+    return ref;
+  });
+}
+
+/** Movie runtime in minutes, or average episode length for a series. */
+export async function fetchRuntimeMinutes(
+  type: "MOVIE" | "SERIES",
+  tmdbId: number,
+): Promise<number | null> {
+  return cached(`runtime:${type}:${tmdbId}`, 24 * 60 * 60 * 1000, async () => {
+    const base = type === "MOVIE" ? "movie" : "tv";
+    const res = await fetch(
+      tmdbUrl(`/${base}/${tmdbId}`, { language: "en-US" }),
+      {
+        headers: tmdbHeaders(),
+        signal: AbortSignal.timeout(8000),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`TMDB runtime failed (HTTP ${res.status})`);
+    }
+    const data = (await res.json()) as RawResult;
+    if (type === "MOVIE") {
+      return boundedNumber(data.runtime, 1, 1000);
+    }
+    const runtimes = Array.isArray(data.episode_run_time)
+      ? data.episode_run_time
+      : [];
+    const valid = runtimes
+      .map((n) => boundedNumber(n, 5, 400))
+      .filter((n): n is number => n !== null);
+    if (valid.length === 0) return null;
+    return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
+  });
+}

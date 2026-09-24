@@ -1,0 +1,169 @@
+import Link from "next/link";
+import { CurrentlyWatching } from "@/modules/media/components/currently-watching";
+import { GenreProfile } from "@/modules/media/components/genre-profile";
+import {
+  getGenreProfile,
+  getLibraryTmdbKeys,
+  getRecommendationSources,
+  getSeasonsByItemId,
+  listMediaItems,
+} from "@/modules/media/queries";
+import { fetchTrending, getRecommendations } from "@/modules/tmdb/queries";
+import {
+  HeroCarousel,
+  type HeroSlide,
+} from "@/modules/tmdb/components/hero-carousel";
+import { RecommendationsSection } from "@/modules/tmdb/components/recommendations-section";
+import { TrendingSection } from "@/modules/tmdb/components/trending-section";
+
+export const dynamic = "force-dynamic";
+
+type SearchParams = { [key: string]: string | string[] | undefined };
+
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+  const genreParam = (first(params.genre) ?? "").trim().slice(0, 60);
+  const genre = genreParam || undefined;
+  const matchesGenre = (genres: string[]) =>
+    genre === undefined || genres.includes(genre);
+  const [watching, genreProfile, sources, libraryKeys, seasonsByItem] =
+    await Promise.all([
+      listMediaItems({ status: "WATCHING" }),
+      getGenreProfile(),
+      getRecommendationSources(),
+      getLibraryTmdbKeys(),
+      getSeasonsByItemId(),
+    ]);
+
+  const watchingFiltered = watching.filter((item) => matchesGenre(item.genres));
+
+  const seasonsRecord = Object.fromEntries(seasonsByItem);
+
+  const [trendingMovies, trendingSeries, recommendations] = await Promise.all([
+    fetchTrending("MOVIE").catch(() => []),
+    fetchTrending("SERIES").catch(() => []),
+    sources.length > 0
+      ? getRecommendations(
+          sources.map((s) => ({
+            tmdbId: s.tmdbId,
+            type: s.type,
+            rating: s.rating,
+            title: s.title,
+          })),
+          libraryKeys,
+        ).catch(() => [])
+      : Promise.resolve([]),
+  ]);
+
+  const trendingMoviesFiltered = trendingMovies.filter((item) =>
+    matchesGenre(item.genres),
+  );
+  const trendingSeriesFiltered = trendingSeries.filter((item) =>
+    matchesGenre(item.genres),
+  );
+  const recommendationsFiltered = recommendations.filter((item) =>
+    matchesGenre(item.genres),
+  );
+
+  const genreCounts = new Map<string, number>();
+  for (const item of [
+    ...trendingMovies,
+    ...trendingSeries,
+    ...recommendations,
+    ...watching,
+  ]) {
+    for (const name of item.genres) {
+      genreCounts.set(name, (genreCounts.get(name) ?? 0) + 1);
+    }
+  }
+  const genreChips = [...genreCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12);
+
+  const featured: HeroSlide[] = [];
+  const maxRows = Math.max(trendingMovies.length, trendingSeries.length);
+  for (let i = 0; i < maxRows && featured.length < 5; i++) {
+    const movie = trendingMovies[i];
+    const series = trendingSeries[i];
+    if (movie) {
+      featured.push({
+        item: movie,
+        type: "MOVIE",
+        inLibrary: libraryKeys.includes(`MOVIE:${movie.tmdbId}`),
+      });
+    }
+    if (series && featured.length < 5) {
+      featured.push({
+        item: series,
+        type: "SERIES",
+        inLibrary: libraryKeys.includes(`SERIES:${series.tmdbId}`),
+      });
+    }
+  }
+
+  return (
+    <div className="page-enter flex flex-col gap-7">
+      <HeroCarousel slides={featured} />
+
+      {genreChips.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={genre ? "/" : "#"}
+            className={`rounded-full px-3 py-1 text-xs transition ${
+              genre === undefined
+                ? "bg-accent font-medium text-white"
+                : "border border-line text-muted hover:bg-surface-2"
+            }`}
+          >
+            All genres
+          </Link>
+          {genreChips.map(([name, count]) => (
+            <Link
+              key={name}
+              href={
+                genre === name ? "/" : `/?genre=${encodeURIComponent(name)}`
+              }
+              className={`rounded-full px-3 py-1 text-xs transition ${
+                genre === name
+                  ? "bg-accent font-medium text-white"
+                  : "border border-line text-muted hover:bg-surface-2"
+              }`}
+            >
+              {name} ({count})
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <CurrentlyWatching
+        items={watchingFiltered}
+        seasonsByItem={seasonsRecord}
+      />
+
+      <TrendingSection
+        movies={trendingMoviesFiltered}
+        series={trendingSeriesFiltered}
+      />
+
+      {recommendationsFiltered.length > 0 ? (
+        <RecommendationsSection recommendations={recommendationsFiltered} />
+      ) : (
+        <p className="text-sm text-muted">
+          {genre
+            ? "None of your recommended titles match this genre."
+            : "Rate a few titles 7 or higher and recommendations will show up here."}
+        </p>
+      )}
+
+      <GenreProfile profile={genreProfile} />
+    </div>
+  );
+}

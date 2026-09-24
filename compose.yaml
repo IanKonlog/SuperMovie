@@ -1,0 +1,53 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-superapp}
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      AUTH_USERNAME: ${AUTH_USERNAME:?set AUTH_USERNAME in .env}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:?set AUTH_PASSWORD in .env}
+      AUTH_SECURE_COOKIE: ${AUTH_SECURE_COOKIE:-false}
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    # Localhost only: reached via `tailscale serve` on the VPS host, not the public internet.
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-superapp}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    profiles: ["domain"] # optional: only for a real domain with auto-HTTPS
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

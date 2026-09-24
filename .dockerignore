@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+build
+src/generated
+.git
+.env*
+.env.production.example
+*.md
+Dockerfile
+compose.yaml
+.dockerignore

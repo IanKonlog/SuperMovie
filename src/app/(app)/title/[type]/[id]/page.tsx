@@ -297,7 +297,7 @@ export default async function TitlePage({
                 className="card-enter flex flex-col gap-3"
               >
                 <h2 className="text-lg font-bold">Trailer</h2>
-                <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-line bg-black">
+                <div className="relative mx-auto aspect-video w-[86%] max-w-2xl overflow-hidden rounded-xl border border-line bg-black">
                   <iframe
                     src={`https://www.youtube.com/embed/${title.youtubeKey}`}
                     title={`${title.title} trailer`}

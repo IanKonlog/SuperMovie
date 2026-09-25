@@ -114,7 +114,7 @@ export function TitleVideos({
       </div>
 
       {current && (
-        <div className="pop-enter relative aspect-video w-full overflow-hidden rounded-xl border border-line bg-black">
+        <div className="pop-enter relative mx-auto aspect-video w-[86%] max-w-2xl overflow-hidden rounded-xl border border-line bg-black">
           <iframe
             key={current.key}
             src={`https://www.youtube.com/embed/${current.key}`}

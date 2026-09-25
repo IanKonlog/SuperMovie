@@ -282,7 +282,10 @@ export default async function TitlePage({
 
       {/* Main + sidebar */}
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:grid-rows-[auto_auto_auto_1fr]">
-        <div className="flex min-w-0 flex-col gap-10 lg:col-start-1 lg:row-start-1">
+        <div
+          className="flex min-w-0 flex-col gap-10 lg:col-start-1 lg:row-start-1"
+          style={{ minWidth: 0 }}
+        >
           {title.type === "SERIES" ? (
             <SeriesVideosSection
               tmdbId={title.tmdbId}
@@ -297,21 +300,23 @@ export default async function TitlePage({
                 className="card-enter flex flex-col gap-3"
               >
                 <h2 className="text-lg font-bold">Trailer</h2>
-                <div className="relative mx-auto aspect-video w-[86%] max-w-2xl overflow-hidden rounded-xl border border-line bg-black">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${title.youtubeKey}`}
-                    title={`${title.title} trailer`}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="absolute inset-0 h-full w-full border-0"
-                  />
+                <div className="flex w-full justify-center">
+                  <div className="relative aspect-video w-[86%] max-w-2xl overflow-hidden rounded-xl border border-line bg-black">
+                    <iframe
+                      src={`https://www.youtube.com/embed/${title.youtubeKey}`}
+                      title={`${title.title} trailer`}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="absolute inset-0 h-full w-full border-0"
+                    />
+                  </div>
                 </div>
               </section>
             )
           )}
         </div>
 
-        <aside className="flex flex-col gap-4 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:self-start lg:sticky lg:top-20">
+        <aside className="flex min-w-0 flex-col gap-4 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:self-start lg:sticky lg:top-20">
           {title.nextEpisode && (
             <section
               aria-label="Next up"

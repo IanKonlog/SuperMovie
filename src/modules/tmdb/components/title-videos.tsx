@@ -114,15 +114,17 @@ export function TitleVideos({
       </div>
 
       {current && (
-        <div className="pop-enter relative mx-auto aspect-video w-[86%] max-w-2xl overflow-hidden rounded-xl border border-line bg-black">
-          <iframe
-            key={current.key}
-            src={`https://www.youtube.com/embed/${current.key}`}
-            title={current.name}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="absolute inset-0 h-full w-full border-0"
-          />
+        <div className="flex w-full justify-center">
+          <div className="pop-enter relative aspect-video w-[86%] max-w-2xl overflow-hidden rounded-xl border border-line bg-black">
+            <iframe
+              key={current.key}
+              src={`https://www.youtube.com/embed/${current.key}`}
+              title={current.name}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 h-full w-full border-0"
+            />
+          </div>
         </div>
       )}
 

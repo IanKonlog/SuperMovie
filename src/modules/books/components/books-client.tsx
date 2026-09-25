@@ -11,13 +11,15 @@ import {
 } from "react";
 import {
   addBook,
+  addQuote,
   deleteBook,
+  deleteQuote,
   searchBooksAction,
   updateBook,
   type BookActionState,
 } from "../actions";
 import { BOOK_STATUSES, BOOK_STATUS_LABELS, type BookDTO } from "../constants";
-import type { BookSearchResult } from "../queries";
+import type { BookSearchResult, QuoteDTO } from "../queries";
 
 const initial: BookActionState = {};
 
@@ -216,8 +218,20 @@ function BookSearch() {
   );
 }
 
-function BookPanel({ book, onClose }: { book: BookDTO; onClose: () => void }) {
+function BookPanel({
+  book,
+  quotes,
+  onClose,
+}: {
+  book: BookDTO;
+  quotes: QuoteDTO[];
+  onClose: () => void;
+}) {
   const [state] = useActionState(updateBook, initial);
+  const [quoteState, quoteAction, quotePending] = useActionState(
+    addQuote,
+    initial,
+  );
   const [, startTransition] = useTransition();
   const done = book.pageCount !== null && book.currentPage >= book.pageCount;
 
@@ -343,11 +357,84 @@ function BookPanel({ book, onClose }: { book: BookDTO; onClose: () => void }) {
           {state.error && <p className="text-sm text-red-500">{state.error}</p>}
         </div>
       </div>
+
+      <div className="mt-3 border-t border-line pt-3">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+          Quotes
+        </p>
+        {quotes.length > 0 && (
+          <ul className="mb-3 flex flex-col gap-2">
+            {quotes.map((quote) => (
+              <li
+                key={quote.id}
+                className="flex items-start gap-2 rounded-lg bg-surface-2 px-3 py-2"
+              >
+                <p className="min-w-0 flex-1 text-sm italic text-foreground/90">
+                  &ldquo;{quote.text}&rdquo;
+                  {quote.page !== null && (
+                    <span className="ml-1.5 font-mono text-[10px] not-italic tabular-nums text-muted">
+                      p.{quote.page}
+                    </span>
+                  )}
+                </p>
+                <form action={deleteQuote}>
+                  <input type="hidden" name="id" value={quote.id} />
+                  <button
+                    type="submit"
+                    aria-label="Delete quote"
+                    className="text-xs text-muted transition hover:text-foreground"
+                  >
+                    ✕
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form action={quoteAction} className="flex flex-col gap-2">
+          <input type="hidden" name="bookId" value={book.id} />
+          <input
+            name="text"
+            required
+            maxLength={500}
+            placeholder="Save a favourite passage…"
+            aria-label="Quote text"
+            className="rounded-lg border border-line bg-background px-3 py-2 text-sm outline-none focus:border-muted"
+          />
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              name="page"
+              min={1}
+              max={20000}
+              placeholder="Page"
+              aria-label="Quote page"
+              className="w-20 rounded-lg border border-line bg-background px-2 py-1.5 text-sm outline-none focus:border-muted"
+            />
+            <button
+              type="submit"
+              disabled={quotePending}
+              className="rounded-lg border border-line px-3 py-1.5 text-sm transition hover:bg-surface-2 disabled:opacity-40"
+            >
+              {quotePending ? "Saving…" : "Save quote"}
+            </button>
+            {quoteState.error && (
+              <span className="text-xs text-red-500">{quoteState.error}</span>
+            )}
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
 
-export function BooksClient({ books }: { books: BookDTO[] }) {
+export function BooksClient({
+  books,
+  quotes,
+}: {
+  books: BookDTO[];
+  quotes: Record<string, QuoteDTO[]>;
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
@@ -398,7 +485,11 @@ export function BooksClient({ books }: { books: BookDTO[] }) {
               </li>
               {book.id === selectedId && (
                 <li className="pop-enter col-span-full pb-2">
-                  <BookPanel book={book} onClose={() => setSelectedId(null)} />
+                  <BookPanel
+                    book={book}
+                    quotes={quotes[book.id] ?? []}
+                    onClose={() => setSelectedId(null)}
+                  />
                 </li>
               )}
             </Fragment>

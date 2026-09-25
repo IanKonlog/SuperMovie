@@ -43,6 +43,9 @@ model MediaItem {
   voteAverage Float?
   genres      String[]
 
+  watchCount Int      @default(1) // times finished (rewatches)
+  tags       String[] // free-form personal tags
+
   seasons MediaSeason[]
   watchedEpisodes EpisodeWatched[]
 
@@ -87,6 +90,8 @@ model Book {
   publishedDate String?
   completedAt   DateTime? // when the book was marked FINISHED (Wrapped/year stats)
 
+  quotes Quote[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -98,6 +103,36 @@ model ShareToken {
   id        String   @id @default(cuid())
   token     String   @unique
   createdAt DateTime @default(now())
+}
+
+// Dashboard goals, e.g. 24 BOOKS in 2026. One active goal per kind per year.
+enum GoalKind {
+  TITLES
+  MOVIES
+  SERIES
+  BOOKS
+}
+
+model Goal {
+  id        String   @id @default(cuid())
+  kind      GoalKind
+  target    Int
+  year      Int
+  createdAt DateTime @default(now())
+
+  @@unique([kind, year])
+}
+
+// Favorite passages saved on a book.
+model Quote {
+  id        String   @id @default(cuid())
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  text      String
+  page      Int?
+  createdAt DateTime @default(now())
+
+  @@index([bookId])
 }
 
 // Recommendations the user dismissed from the "For you" shelf.

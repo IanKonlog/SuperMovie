@@ -322,6 +322,7 @@ export async function updateMediaItem(
     progressNote?: string | null;
     comment?: string | null;
     completedAt?: Date | null;
+    tags?: string[];
   } = {};
 
   if (status !== null) {
@@ -361,6 +362,17 @@ export async function updateMediaItem(
       return { error: "Comment is too long." };
     }
     data.comment = comment || null;
+  }
+
+  const tagsRaw = formData.get("tags");
+  if (tagsRaw !== null) {
+    if (typeof tagsRaw !== "string") return { error: "Invalid tags." };
+    const tags = tagsRaw
+      .split(",")
+      .map((tag) => tag.trim().slice(0, 30).toLowerCase())
+      .filter(Boolean)
+      .slice(0, 10);
+    data.tags = tags;
   }
 
   if (Object.keys(data).length === 0) return { success: true };
@@ -875,6 +887,99 @@ export async function importLetterboxd(
 
   if (added > 0) revalidateMedia();
   return { added, skipped, matched };
+}
+
+export async function registerRewatch(formData: FormData): Promise<void> {
+  await requireSession();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const target = await db.mediaItem.findUnique({
+    where: { id },
+    select: { title: true },
+  });
+  const result = await db.mediaItem.updateMany({
+    where: { id },
+    data: { watchCount: { increment: 1 } },
+  });
+  if (result.count === 0) return;
+  if (target) logActivity("rewatch", `Rewatched ${target.title}`);
+  revalidateMedia();
+}
+
+export async function bulkUpdateStatus(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireSession();
+
+  const status = formData.get("status");
+  if (typeof status !== "string" || !isWatchStatus(status)) {
+    return { error: "Invalid status." };
+  }
+
+  const ids = formData
+    .getAll("ids")
+    .filter(
+      (v): v is string => typeof v === "string" && /^[a-z0-9]{10,40}$/i.test(v),
+    );
+  if (ids.length === 0) return { error: "Nothing selected." };
+  if (ids.length > 200) return { error: "Too many items (max 200)." };
+
+  const result = await db.mediaItem
+    .updateMany({ where: { id: { in: ids } }, data: { status } })
+    .catch(() => null);
+  if (!result) return { error: "Could not update. Please try again." };
+
+  logActivity(
+    "status",
+    `Moved ${result.count} title${result.count === 1 ? "" : "s"} to ${
+      WATCH_STATUS_LABELS_SAFE[status]
+    }`,
+  );
+  revalidateMedia();
+  return { success: true };
+}
+
+export async function notifyStaleWatching(): Promise<void> {
+  const url = process.env.NTFY_URL;
+  if (!url || !/^https:\/[\w./-]+$/.test(url)) return;
+
+  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const stale = await db.mediaItem.findMany({
+    where: { status: "WATCHING", updatedAt: { lt: cutoff } },
+    select: { id: true, title: true, updatedAt: true },
+    take: 5,
+    orderBy: { updatedAt: "asc" },
+  });
+  if (stale.length === 0) return;
+
+  for (const item of stale) {
+    // Re-nudge an item at most once per month.
+    const key = `stale:${item.id}:${item.updatedAt.toISOString().slice(0, 7)}`;
+    const already = await db.activityEvent.findFirst({
+      where: { kind: "notified", message: key },
+      select: { id: true },
+    });
+    if (already) continue;
+
+    const days = Math.floor(
+      (Date.now() - item.updatedAt.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    await fetch(url, {
+      method: "POST",
+      body: `SuperMovie: still watching ${item.title}? Last update ${days} days ago.`,
+      headers: { Title: "Continue watching?" },
+      signal: AbortSignal.timeout(5000),
+    })
+      .then(() =>
+        db.activityEvent.create({
+          data: { kind: "notified", message: key },
+        }),
+      )
+      .catch(() => undefined);
+  }
 }
 
 export async function notifyAiringEpisodes(

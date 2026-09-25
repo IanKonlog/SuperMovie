@@ -34,7 +34,35 @@ export type MediaItemDTO = {
   releaseDate: string | null;
   voteAverage: number | null;
   genres: string[];
+  watchCount: number;
+  tags: string[];
 };
+
+export const LIBRARY_SORTS = [
+  "recent",
+  "added",
+  "title",
+  "rating",
+  "year",
+  "rewatches",
+] as const;
+export type LibrarySort = (typeof LIBRARY_SORTS)[number];
+
+export const LIBRARY_SORT_LABELS: Record<LibrarySort, string> = {
+  recent: "Recently updated",
+  added: "Recently added",
+  title: "Title",
+  rating: "Your rating",
+  year: "Release year",
+  rewatches: "Most rewatched",
+};
+
+export function isLibrarySort(value: unknown): value is LibrarySort {
+  return (
+    typeof value === "string" &&
+    (LIBRARY_SORTS as readonly string[]).includes(value)
+  );
+}
 
 export type SeasonDTO = {
   id: string;

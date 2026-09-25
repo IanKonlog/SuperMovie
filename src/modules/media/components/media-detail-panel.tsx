@@ -2,7 +2,12 @@
 
 import { useActionState, useState, useTransition } from "react";
 import Link from "next/link";
-import { deleteMediaItem, updateMediaItem, type ActionState } from "../actions";
+import {
+  deleteMediaItem,
+  registerRewatch,
+  updateMediaItem,
+  type ActionState,
+} from "../actions";
 import { Poster } from "./poster";
 import { SeasonTracker } from "./season-tracker";
 import { titleHref } from "@/modules/tmdb/links";
@@ -125,7 +130,24 @@ export function MediaDetailPanel({
                 <span>TMDB {item.voteAverage.toFixed(1)}</span>
               )}
             {progressLine && <span>Progress: {progressLine}</span>}
+            {item.watchCount > 1 && (
+              <span className="font-mono tabular-nums">
+                Watched ×{item.watchCount}
+              </span>
+            )}
           </div>
+          {item.tags.length > 0 && (
+            <p className="mt-1.5 flex flex-wrap gap-1.5">
+              {item.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[10px] text-muted"
+                >
+                  #{tag}
+                </span>
+              ))}
+            </p>
+          )}
           {item.comment && (
             <p className="mt-2 text-sm text-muted">{item.comment}</p>
           )}
@@ -176,6 +198,21 @@ export function MediaDetailPanel({
             )}
           </button>
         )}
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            const formData = new FormData();
+            formData.set("id", item.id);
+            startTransition(async () => {
+              await registerRewatch(formData);
+            });
+          }}
+          className={chipClasses}
+          title="Count another watch"
+        >
+          ↻ Rewatch
+        </button>
         <button
           type="button"
           aria-expanded={expanded}
@@ -241,6 +278,14 @@ export function MediaDetailPanel({
             maxLength={500}
             placeholder="Notes (max 500 chars)"
             rows={2}
+            className="rounded-lg border border-line bg-background px-3 py-2 text-sm outline-none focus:border-muted"
+          />
+          <input
+            name="tags"
+            defaultValue={item.tags.join(", ")}
+            maxLength={320}
+            placeholder="Tags, comma separated (e.g. comfort watch, with Maya)"
+            aria-label="Tags"
             className="rounded-lg border border-line bg-background px-3 py-2 text-sm outline-none focus:border-muted"
           />
           <div className="flex items-center gap-3">

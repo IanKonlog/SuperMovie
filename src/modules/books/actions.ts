@@ -9,6 +9,7 @@ import { searchGoogleBooks, type BookSearchResult } from "./queries";
 
 export type BookActionState = { error?: string; success?: boolean };
 export type BookSearchState = { results: BookSearchResult[]; error?: string };
+export type QuoteActionState = { error?: string; success?: boolean };
 
 function revalidateBooks() {
   revalidatePath("/", "layout");
@@ -169,6 +170,47 @@ export async function deleteBook(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await db.book.deleteMany({ where: { id } });
+  revalidateBooks();
+}
+
+export async function addQuote(
+  _prev: QuoteActionState,
+  formData: FormData,
+): Promise<QuoteActionState> {
+  await requireSession();
+
+  const bookId = String(formData.get("bookId") ?? "");
+  if (!bookId) return { error: "Missing book." };
+
+  const text = String(formData.get("text") ?? "").trim();
+  if (text.length < 1 || text.length > 500) {
+    return { error: "Quote must be 1-500 characters." };
+  }
+
+  const pageRaw = Number(formData.get("page"));
+  const page =
+    formData.get("page") === "" || Number.isNaN(pageRaw) ? null : pageRaw;
+  if (page !== null && (!Number.isInteger(page) || page < 1 || page > 20000)) {
+    return { error: "Invalid page number." };
+  }
+
+  try {
+    await db.quote.create({
+      data: { bookId, text, page },
+    });
+  } catch {
+    return { error: "Could not save the quote. Please try again." };
+  }
+
+  revalidateBooks();
+  return { success: true };
+}
+
+export async function deleteQuote(formData: FormData): Promise<void> {
+  await requireSession();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await db.quote.deleteMany({ where: { id } });
   revalidateBooks();
 }
 

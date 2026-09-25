@@ -1,13 +1,22 @@
 import { BooksClient } from "@/modules/books/components/books-client";
 import { GoodreadsImportForm } from "@/modules/books/components/goodreads-import-form";
-import { getBookCounts, listBooks } from "@/modules/books/queries";
+import {
+  getBookCounts,
+  getBookQuotes,
+  listBooks,
+} from "@/modules/books/queries";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Books — SuperMovie" };
 
 export default async function BooksPage() {
-  const [books, counts] = await Promise.all([listBooks(), getBookCounts()]);
+  const [books, counts, quotes] = await Promise.all([
+    listBooks(),
+    getBookCounts(),
+    getBookQuotes(),
+  ]);
+  const quotesRecord = Object.fromEntries(quotes);
 
   return (
     <div className="page-enter flex flex-col gap-6">
@@ -17,7 +26,7 @@ export default async function BooksPage() {
           {counts.total} on the shelf
         </span>
       </h1>
-      <BooksClient books={books} />
+      <BooksClient books={books} quotes={quotesRecord} />
       <GoodreadsImportForm />
     </div>
   );

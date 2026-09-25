@@ -2,7 +2,11 @@ import Link from "next/link";
 import { CurrentlyWatching } from "@/modules/media/components/currently-watching";
 import { PosterRow } from "@/modules/media/components/poster-row";
 import { RandomPick } from "@/modules/media/components/random-pick";
-import { notifyAiringEpisodes } from "@/modules/media/actions";
+import {
+  notifyAiringEpisodes,
+  notifyStaleWatching,
+} from "@/modules/media/actions";
+import { GoalsSection } from "@/modules/goals/components/goals-section";
 import { MoodBrowse } from "@/modules/tmdb/components/mood-browse";
 import { GenreProfile } from "@/modules/media/components/genre-profile";
 import {
@@ -150,6 +154,8 @@ export default async function HomePage({
     ).catch(() => undefined);
   }
 
+  await notifyStaleWatching().catch(() => undefined);
+
   const featured: HeroSlide[] = [];
   const maxRows = Math.max(trendingMovies.length, trendingSeries.length);
   for (let i = 0; i < maxRows && featured.length < 5; i++) {
@@ -232,6 +238,8 @@ export default async function HomePage({
         items={watchingFiltered}
         seasonsByItem={seasonsRecord}
       />
+
+      <GoalsSection year={new Date().getFullYear()} />
 
       <TrendingSection
         movies={trendingMoviesFiltered}

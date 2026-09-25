@@ -134,6 +134,32 @@ export type BookStats = {
   pagesRead: number;
 };
 
+export type QuoteDTO = {
+  id: string;
+  text: string;
+  page: number | null;
+  createdAt: string;
+};
+
+export async function getBookQuotes(): Promise<Map<string, QuoteDTO[]>> {
+  const rows = await db.quote.findMany({
+    orderBy: { createdAt: "desc" },
+    select: { id: true, bookId: true, text: true, page: true, createdAt: true },
+  });
+  const byBook = new Map<string, QuoteDTO[]>();
+  for (const row of rows) {
+    const list = byBook.get(row.bookId) ?? [];
+    list.push({
+      id: row.id,
+      text: row.text,
+      page: row.page,
+      createdAt: row.createdAt.toISOString(),
+    });
+    byBook.set(row.bookId, list);
+  }
+  return byBook;
+}
+
 export async function getBookStats(): Promise<BookStats> {
   const books = await db.book.findMany({
     select: {

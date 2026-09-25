@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type {
+  LibrarySort,
   MediaItemDTO,
   MediaTypeValue,
   SeasonDTO,
@@ -34,6 +35,9 @@ export async function listLibraryPage(filters: {
   q?: string;
   genre?: string;
   favoritesOnly?: boolean;
+  tag?: string;
+  decadePrefix?: string;
+  sort?: LibrarySort;
   page: number;
 }): Promise<LibraryPage> {
   const page = Math.max(1, filters.page);
@@ -44,13 +48,38 @@ export async function listLibraryPage(filters: {
       ? { title: { contains: filters.q, mode: "insensitive" as const } }
       : {}),
     ...(filters.genre ? { genres: { has: filters.genre } } : {}),
+    ...(filters.tag ? { tags: { has: filters.tag } } : {}),
+    ...(filters.decadePrefix
+      ? { releaseDate: { startsWith: filters.decadePrefix } }
+      : {}),
     ...(filters.favoritesOnly ? { isFavorite: true } : {}),
   };
+
+  const sort = filters.sort ?? "recent";
+  const orderBy =
+    sort === "added"
+      ? [{ createdAt: "desc" as const }]
+      : sort === "title"
+        ? [{ title: "asc" as const }]
+        : sort === "rating"
+          ? [{ rating: { sort: "desc" as const, nulls: "last" as const } }]
+          : sort === "year"
+            ? [
+                {
+                  releaseDate: {
+                    sort: "desc" as const,
+                    nulls: "last" as const,
+                  },
+                },
+              ]
+            : sort === "rewatches"
+              ? [{ watchCount: "desc" as const }]
+              : [{ updatedAt: "desc" as const }];
 
   const [items, total] = await Promise.all([
     db.mediaItem.findMany({
       where,
-      orderBy: [{ updatedAt: "desc" }],
+      orderBy,
       skip: (page - 1) * LIBRARY_PAGE_SIZE,
       take: LIBRARY_PAGE_SIZE,
     }),
@@ -223,6 +252,38 @@ export async function getLibraryGenreCounts(): Promise<GenreCount[]> {
   return [...counts.entries()]
     .map(([genre, count]) => ({ genre, count }))
     .sort((a, b) => b.count - a.count);
+}
+
+export async function getLibraryTagCounts(): Promise<GenreCount[]> {
+  const rows = await db.mediaItem.findMany({ select: { tags: true } });
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    for (const tag of row.tags) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .map(([tag, count]) => ({ genre: tag, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+export type DecadeCount = { decade: string; prefix: string; count: number };
+
+export async function getLibraryDecades(): Promise<DecadeCount[]> {
+  const rows = await db.mediaItem.findMany({
+    where: { releaseDate: { not: null } },
+    select: { releaseDate: true },
+  });
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const releaseDate = row.releaseDate as string;
+    if (!/^\d{4}/.test(releaseDate)) continue;
+    const prefix = releaseDate.slice(0, 3);
+    counts.set(prefix, (counts.get(prefix) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([prefix, count]) => ({ decade: `${prefix}0s`, prefix, count }))
+    .sort((a, b) => b.prefix.localeCompare(a.prefix));
 }
 
 export type StatsItem = {

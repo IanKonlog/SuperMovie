@@ -14,7 +14,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 border-b border-line/60 bg-gradient-to-b from-background to-background/80 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-line/60 bg-gradient-to-b from-background via-background/95 to-background/85 backdrop-blur">
         <div className="flex w-full items-center gap-6 px-4 py-3 sm:px-8 lg:px-12">
           <span className="text-lg font-black tracking-tighter text-accent uppercase sm:text-xl">
             Supermovie

@@ -154,7 +154,9 @@ function BookSearch() {
               {selected.pageCount !== null && ` · ${selected.pageCount} pages`}
             </p>
             {state.error && (
-              <p className="mt-1 text-sm text-red-500">{state.error}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-500">
+                {state.error}
+              </p>
             )}
           </div>
           <label className="flex flex-col gap-1 text-xs">
@@ -306,7 +308,7 @@ function BookPanel({
                 +25p
               </button>
               {done && (
-                <span className="text-xs font-medium text-green-500">
+                <span className="text-xs font-medium text-green-600 dark:text-green-500">
                   Finished ✓
                 </span>
               )}
@@ -348,13 +350,17 @@ function BookPanel({
               <input type="hidden" name="id" value={book.id} />
               <button
                 type="submit"
-                className="rounded-lg px-2 py-1.5 text-sm text-red-500 transition hover:bg-red-950/60"
+                className="rounded-lg px-2 py-1.5 text-sm text-red-600 transition hover:bg-red-500/10 dark:text-red-500"
               >
                 Delete
               </button>
             </form>
           </div>
-          {state.error && <p className="text-sm text-red-500">{state.error}</p>}
+          {state.error && (
+            <p className="text-sm text-red-600 dark:text-red-500">
+              {state.error}
+            </p>
+          )}
         </div>
       </div>
 
@@ -419,7 +425,9 @@ function BookPanel({
               {quotePending ? "Saving…" : "Save quote"}
             </button>
             {quoteState.error && (
-              <span className="text-xs text-red-500">{quoteState.error}</span>
+              <span className="text-xs text-red-600 dark:text-red-500">
+                {quoteState.error}
+              </span>
             )}
           </div>
         </form>
@@ -468,7 +476,7 @@ export function BooksClient({
                     size={160}
                   />
                   {book.rating !== null && book.rating >= 8 && (
-                    <span className="absolute top-1 right-1 text-sm text-amber-400 drop-shadow">
+                    <span className="absolute top-1 right-1 text-sm text-amber-400">
                       ★
                     </span>
                   )}

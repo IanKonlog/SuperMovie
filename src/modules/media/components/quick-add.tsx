@@ -136,7 +136,7 @@ export function QuickAdd({
         style={
           anchored ? { visibility: "hidden", position: "fixed" } : undefined
         }
-        className={`pop-enter overflow-hidden rounded-xl border border-line bg-surface shadow-2xl ${
+        className={`pop-enter overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-overlay)] ${
           anchored ? "z-50 w-[19rem]" : "relative mx-auto my-8 max-w-2xl"
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -163,7 +163,7 @@ export function QuickAdd({
             ✕
           </button>
           <h2
-            className={`absolute bottom-2 left-4 right-4 font-extrabold drop-shadow-lg ${
+            className={`absolute bottom-2 left-4 right-4 font-extrabold ${
               anchored ? "text-lg" : "bottom-3 text-2xl sm:left-6 sm:text-3xl"
             }`}
           >
@@ -174,7 +174,7 @@ export function QuickAdd({
         <div className={anchored ? "p-3" : "p-4 sm:p-6"}>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             {item.voteAverage !== null && item.voteAverage > 0 && (
-              <span className="font-medium text-green-500">
+              <span className="font-medium text-green-600 dark:text-green-500">
                 {Math.round(item.voteAverage * 10)}% match
               </span>
             )}
@@ -326,7 +326,9 @@ export function QuickAdd({
                 </Link>
               )}
               {state.error && (
-                <span className="mt-1 text-sm text-red-500">{state.error}</span>
+                <span className="mt-1 text-sm text-red-600 dark:text-red-500">
+                  {state.error}
+                </span>
               )}
             </div>
           </form>

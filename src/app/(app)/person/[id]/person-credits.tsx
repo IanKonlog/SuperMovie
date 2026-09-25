@@ -137,7 +137,7 @@ export function PersonCredits({ credits }: { credits: PersonCredit[] }) {
                     },
                   });
                 }}
-                className="block w-full transition duration-200 ease-out hover:z-10 hover:scale-105 hover:drop-shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
+                className="block w-full transition duration-200 ease-out hover:z-10 hover:scale-105 hover:drop-shadow-[var(--shadow-hover)]"
               >
                 <Poster
                   posterUrl={credit.posterUrl}

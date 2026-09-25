@@ -35,9 +35,13 @@ export function CsvImportForm() {
         >
           {pending ? "Importing…" : "Import CSV"}
         </button>
-        {state.error && <p className="text-sm text-red-500">{state.error}</p>}
+        {state.error && (
+          <p className="text-sm text-red-600 dark:text-red-500">
+            {state.error}
+          </p>
+        )}
         {state.added !== undefined && (
-          <p className="text-sm text-green-500">
+          <p className="text-sm text-green-600 dark:text-green-500">
             Added {state.added} film{state.added === 1 ? "" : "s"} (
             {state.matched ?? 0} matched with TMDB,{" "}
             {state.added - (state.matched ?? 0)} manual). Skipped{" "}

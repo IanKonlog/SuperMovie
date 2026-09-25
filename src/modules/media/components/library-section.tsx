@@ -125,7 +125,11 @@ export function LibrarySection({
               >
                 Cancel
               </button>
-              {bulkError && <p className="text-sm text-red-500">{bulkError}</p>}
+              {bulkError && (
+                <p className="text-sm text-red-600 dark:text-red-500">
+                  {bulkError}
+                </p>
+              )}
             </>
           ) : (
             <button
@@ -168,7 +172,7 @@ export function LibrarySection({
                   aria-label={
                     selectMode ? `Select ${item.title}` : `Manage ${item.title}`
                   }
-                  className={`relative w-full text-left transition duration-200 ease-out hover:scale-[1.04] hover:drop-shadow-[0_10px_30px_rgba(0,0,0,0.7)] ${
+                  className={`relative w-full text-left transition duration-200 ease-out hover:scale-[1.04] hover:drop-shadow-[var(--shadow-hover)] ${
                     selectMode && checked.has(item.id)
                       ? "opacity-70 ring-2 ring-accent rounded-md"
                       : ""
@@ -194,7 +198,7 @@ export function LibrarySection({
                   {item.isFavorite && (
                     <span
                       aria-label="Favorite"
-                      className="absolute top-1 right-1 text-sm text-amber-400 drop-shadow"
+                      className="absolute top-1 right-1 text-sm text-amber-400"
                     >
                       ★
                     </span>

@@ -208,7 +208,7 @@ export function NavSearch() {
         </div>
 
         {open && (
-          <div className="absolute right-0 top-full mt-2 max-h-[75vh] w-[20rem] overflow-y-auto rounded-xl border border-line bg-surface p-3 shadow-2xl sm:w-[26rem]">
+          <div className="absolute right-0 top-full mt-2 max-h-[75vh] w-[20rem] overflow-y-auto rounded-xl border border-line bg-surface p-3 shadow-[var(--shadow-overlay)] sm:w-[26rem]">
             {manual ? (
               <form action={manualAction} className="flex flex-col gap-2">
                 <label className="flex flex-col gap-1 text-xs">
@@ -247,7 +247,9 @@ export function NavSearch() {
                   </select>
                 </label>
                 {manualState.error && (
-                  <p className="text-sm text-red-500">{manualState.error}</p>
+                  <p className="text-sm text-red-600 dark:text-red-500">
+                    {manualState.error}
+                  </p>
                 )}
                 <button
                   type="submit"
@@ -278,7 +280,9 @@ export function NavSearch() {
                   </div>
                 )}
                 {search.status === "error" && (
-                  <p className="text-sm text-red-500">{search.message}</p>
+                  <p className="text-sm text-red-600 dark:text-red-500">
+                    {search.message}
+                  </p>
                 )}
                 {search.status === "done" && search.results.length === 0 && (
                   <p className="text-sm text-muted">
@@ -291,7 +295,9 @@ export function NavSearch() {
                   </p>
                 )}
                 {!manual && manualState.error && (
-                  <p className="text-sm text-red-500">{manualState.error}</p>
+                  <p className="text-sm text-red-600 dark:text-red-500">
+                    {manualState.error}
+                  </p>
                 )}
                 {search.status === "done" && search.results.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">

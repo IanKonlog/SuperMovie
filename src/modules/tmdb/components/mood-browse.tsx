@@ -93,7 +93,9 @@ export function MoodBrowse({ genres }: { genres: string[] }) {
           {pending ? "Finding…" : "Find a movie"}
         </button>
         {error && (
-          <span className="self-center text-sm text-red-500">{error}</span>
+          <span className="self-center text-sm text-red-600 dark:text-red-500">
+            {error}
+          </span>
         )}
       </div>
       {results !== null && results.length === 0 && !error && (

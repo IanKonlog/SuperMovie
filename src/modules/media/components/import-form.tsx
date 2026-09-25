@@ -27,9 +27,13 @@ export function ImportForm() {
         >
           {pending ? "Importing…" : "Import"}
         </button>
-        {state.error && <p className="text-sm text-red-500">{state.error}</p>}
+        {state.error && (
+          <p className="text-sm text-red-600 dark:text-red-500">
+            {state.error}
+          </p>
+        )}
         {state.imported !== undefined && (
-          <p className="text-sm text-green-500">
+          <p className="text-sm text-green-600 dark:text-green-500">
             Imported {state.imported} title{state.imported === 1 ? "" : "s"}.
           </p>
         )}

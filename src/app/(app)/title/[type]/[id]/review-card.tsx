@@ -24,7 +24,7 @@ export function ReviewCard({
         </span>
         <span className="font-medium">{author}</span>
         {rating !== null && (
-          <span className="rounded-full bg-green-950/60 px-2 py-0.5 text-xs font-medium text-green-400">
+          <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
             {rating}/10
           </span>
         )}

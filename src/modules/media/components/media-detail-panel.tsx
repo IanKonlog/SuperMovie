@@ -98,7 +98,7 @@ export function MediaDetailPanel({
               className={`ml-auto text-xl leading-none transition disabled:opacity-40 ${
                 item.isFavorite
                   ? "text-amber-400"
-                  : "text-neutral-600 hover:text-neutral-400"
+                  : "text-muted transition hover:text-foreground"
               }`}
             >
               {item.isFavorite ? "★" : "☆"}
@@ -240,7 +240,7 @@ export function MediaDetailPanel({
           <button
             type="submit"
             aria-label={`Delete ${item.title}`}
-            className="rounded-lg px-2.5 py-1.5 text-sm text-red-500 transition hover:bg-red-950/60"
+            className="rounded-lg px-2.5 py-1.5 text-sm text-red-600 transition hover:bg-red-500/10 dark:text-red-500"
           >
             Delete
           </button>
@@ -248,7 +248,9 @@ export function MediaDetailPanel({
       </div>
 
       {state.error && (
-        <p className="mt-2 text-sm text-red-500">{state.error}</p>
+        <p className="mt-2 text-sm text-red-600 dark:text-red-500">
+          {state.error}
+        </p>
       )}
 
       {item.type === "SERIES" && showSeasons && (
@@ -297,7 +299,9 @@ export function MediaDetailPanel({
               {detailPending ? "Saving…" : "Save"}
             </button>
             {state.error && (
-              <span className="text-sm text-red-500">{state.error}</span>
+              <span className="text-sm text-red-600 dark:text-red-500">
+                {state.error}
+              </span>
             )}
           </div>
         </form>

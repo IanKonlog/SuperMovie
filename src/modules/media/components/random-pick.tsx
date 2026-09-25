@@ -48,7 +48,7 @@ export function RandomPick({ items }: { items: PickItem[] }) {
           onClick={() => setPick(null)}
         >
           <div
-            className="pop-enter w-full max-w-sm overflow-hidden rounded-xl border border-line bg-surface shadow-2xl"
+            className="pop-enter w-full max-w-sm overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-overlay)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex gap-4 p-4">

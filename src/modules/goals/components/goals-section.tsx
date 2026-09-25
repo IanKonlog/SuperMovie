@@ -28,7 +28,7 @@ export async function GoalsSection({ year }: { year: number }) {
                     {goal.complete && (
                       <span
                         aria-label="Goal reached"
-                        className="text-green-500"
+                        className="text-green-600 dark:text-green-500"
                       >
                         ✓
                       </span>

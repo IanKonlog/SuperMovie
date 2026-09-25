@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
   /* Geist light theme (vercel.com/geist/colors) */
   --background: #fafafa;
@@ -9,6 +11,10 @@
   --line: #eaeaea;
   --muted: #666666;
   --accent: #0070f3;
+  --shadow-hover:
+    0 12px 32px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-overlay:
+    0 4px 12px rgba(0, 0, 0, 0.08), 0 16px 40px rgba(0, 0, 0, 0.16);
   color-scheme: light;
 }
 
@@ -22,6 +28,8 @@
   --line: #333333;
   --muted: #a1a1a1;
   --accent: #3291ff;
+  --shadow-hover: 0 10px 30px rgba(0, 0, 0, 0.7);
+  --shadow-overlay: 0 16px 40px rgba(0, 0, 0, 0.6);
   color-scheme: dark;
 }
 
@@ -39,6 +47,8 @@
     --line: #333333;
     --muted: #a1a1a1;
     --accent: #3291ff;
+    --shadow-hover: 0 10px 30px rgba(0, 0, 0, 0.7);
+    --shadow-overlay: 0 16px 40px rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
 }

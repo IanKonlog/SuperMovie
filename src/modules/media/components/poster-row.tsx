@@ -47,7 +47,7 @@ export function PosterRow({ items }: { items: PosterRowItem[] }) {
         {items.map((item) => {
           const content = (
             <>
-              <div className="relative w-full transition duration-200 ease-out hover:z-10 hover:scale-105 hover:shadow-[0_10px_40px_rgba(0,0,0,0.7)]">
+              <div className="relative w-full transition duration-200 ease-out hover:z-10 hover:scale-105 hover:shadow-[var(--shadow-hover)]">
                 <Poster
                   posterUrl={item.posterUrl}
                   title={item.title}

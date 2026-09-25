@@ -106,7 +106,7 @@ export default async function TitlePage({
 
           <div className="absolute bottom-0 left-0 flex w-full items-end gap-4 p-5 sm:gap-6 sm:p-10">
             {title.posterUrl && (
-              <div className="hidden w-44 shrink-0 overflow-hidden rounded-xl shadow-2xl md:block">
+              <div className="hidden w-44 shrink-0 overflow-hidden rounded-xl shadow-[var(--shadow-overlay)] md:block">
                 <Image
                   src={title.posterUrl}
                   alt={`Poster for ${title.title}`}
@@ -118,7 +118,7 @@ export default async function TitlePage({
               </div>
             )}
             <div className="flex min-w-0 flex-1 flex-col gap-2 sm:gap-3">
-              <h1 className="text-3xl font-extrabold drop-shadow-lg sm:text-4xl lg:text-5xl">
+              <h1 className="text-3xl font-extrabold sm:text-4xl lg:text-5xl">
                 {title.title}
               </h1>
               {title.tagline && (
@@ -127,7 +127,7 @@ export default async function TitlePage({
                 </p>
               )}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                <span className="font-medium text-green-500">
+                <span className="font-medium text-green-600 dark:text-green-500">
                   {Math.round(title.voteAverage * 10)}% match
                 </span>
                 {title.releaseDate && (
@@ -205,7 +205,7 @@ export default async function TitlePage({
                 className={`w-32 shrink-0 transition duration-200 ease-out ${
                   part.tmdbId === title.tmdbId
                     ? "opacity-100"
-                    : "hover:scale-105 hover:drop-shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
+                    : "hover:scale-105 hover:drop-shadow-[var(--shadow-hover)]"
                 }`}
                 aria-current={part.tmdbId === title.tmdbId ? "true" : undefined}
               >

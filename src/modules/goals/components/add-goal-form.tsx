@@ -64,7 +64,9 @@ export function AddGoalForm({ year }: { year: number }) {
           {pending ? "Adding…" : "Add goal"}
         </button>
         {state.error && (
-          <p className="w-full text-xs text-red-500">{state.error}</p>
+          <p className="w-full text-xs text-red-600 dark:text-red-500">
+            {state.error}
+          </p>
         )}
       </form>
     </details>

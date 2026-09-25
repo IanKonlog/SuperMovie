@@ -79,11 +79,11 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
                     ? "Featured movie"
                     : "Featured series"}
                 </p>
-                <h1 className="text-3xl font-extrabold drop-shadow-lg sm:text-5xl">
+                <h1 className="text-3xl font-extrabold sm:text-5xl">
                   {slide.item.title}
                 </h1>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                  <span className="font-medium text-green-500">
+                  <span className="font-medium text-green-600 dark:text-green-500">
                     {Math.round(slide.item.voteAverage * 10)}% match
                   </span>
                   {slide.item.releaseDate && (

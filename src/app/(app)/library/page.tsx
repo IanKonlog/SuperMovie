@@ -3,13 +3,18 @@ import { CsvImportForm } from "@/modules/media/components/csv-import-form";
 import { LibrarySection } from "@/modules/media/components/library-section";
 import { Pagination } from "@/modules/media/components/pagination";
 import {
+  isLibrarySort,
   isMediaType,
   isWatchStatus,
+  LIBRARY_SORT_LABELS,
+  LIBRARY_SORTS,
   WATCH_STATUSES,
   WATCH_STATUS_LABELS,
 } from "@/modules/media/constants";
 import {
+  getLibraryDecades,
   getLibraryGenreCounts,
+  getLibraryTagCounts,
   getMediaStats,
   getSeasonsByItemId,
   getWatchedEpisodeKeys,
@@ -37,19 +42,44 @@ export default async function LibraryPage({
   const favoritesOnly = first(params.fav) === "1";
   const genreParam = (first(params.genre) ?? "").trim().slice(0, 60);
   const genre = genreParam || undefined;
+  const tagParam = (first(params.tag) ?? "").trim().slice(0, 30);
+  const tag = tagParam || undefined;
+  const decadeParam = (first(params.decade) ?? "").trim();
+  const decadePrefix = /^\d{3}$/.test(decadeParam) ? decadeParam : undefined;
+  const sortParam = first(params.sort);
+  const sort = isLibrarySort(sortParam) ? sortParam : "recent";
   const status = isWatchStatus(statusParam) ? statusParam : undefined;
   const type = isMediaType(typeParam) ? typeParam : undefined;
   const q = qParam || undefined;
   const page = Math.max(1, Number(first(params.page)) || 1);
 
-  const [library, stats, seasonsByItem, genreCounts, watchedByItem] =
-    await Promise.all([
-      listLibraryPage({ status, type, q, genre, favoritesOnly, page }),
-      getMediaStats(),
-      getSeasonsByItemId(),
-      getLibraryGenreCounts(),
-      getWatchedEpisodeKeys(),
-    ]);
+  const [
+    library,
+    stats,
+    seasonsByItem,
+    genreCounts,
+    watchedByItem,
+    decades,
+    tagCounts,
+  ] = await Promise.all([
+    listLibraryPage({
+      status,
+      type,
+      q,
+      genre,
+      favoritesOnly,
+      tag,
+      decadePrefix,
+      sort,
+      page,
+    }),
+    getMediaStats(),
+    getSeasonsByItemId(),
+    getLibraryGenreCounts(),
+    getWatchedEpisodeKeys(),
+    getLibraryDecades(),
+    getLibraryTagCounts(),
+  ]);
 
   const seasonsRecord = Object.fromEntries(seasonsByItem);
 
@@ -59,6 +89,9 @@ export default async function LibraryPage({
     q?: string;
     genre?: string;
     fav?: string;
+    tag?: string;
+    decade?: string;
+    sort?: string;
     page?: number;
   }) {
     const qs = new URLSearchParams();
@@ -68,11 +101,23 @@ export default async function LibraryPage({
     const g = overrides.genre !== undefined ? overrides.genre : genre;
     const fav =
       overrides.fav !== undefined ? overrides.fav : favoritesOnly ? "1" : "";
+    const tagValue = overrides.tag !== undefined ? overrides.tag : tag;
+    const decadeValue =
+      overrides.decade !== undefined ? overrides.decade : decadePrefix;
+    const sortValue =
+      overrides.sort !== undefined
+        ? overrides.sort
+        : sort === "recent"
+          ? ""
+          : sort;
     if (s) qs.set("status", s);
     if (t) qs.set("type", t);
     if (query) qs.set("q", query);
     if (g) qs.set("genre", g);
     if (fav) qs.set("fav", fav);
+    if (tagValue) qs.set("tag", tagValue);
+    if (decadeValue) qs.set("decade", decadeValue);
+    if (sortValue) qs.set("sort", sortValue);
     if (overrides.page && overrides.page > 1)
       qs.set("page", String(overrides.page));
     const encoded = qs.toString();
@@ -161,6 +206,79 @@ export default async function LibraryPage({
               }`}
             >
               {name} ({count})
+            </Link>
+          ))}
+        </div>
+
+        {decades.length > 0 && (
+          <div className="flex w-full flex-wrap gap-2 pt-1">
+            <Link
+              href={href({ decade: "", page: 1 })}
+              className={`rounded-full px-3 py-1 text-xs transition ${
+                decadePrefix === undefined
+                  ? "bg-accent font-medium text-background"
+                  : "border border-line text-muted hover:bg-surface-2"
+              }`}
+            >
+              Any era
+            </Link>
+            {decades.slice(0, 8).map(({ decade, prefix, count }) => (
+              <Link
+                key={decade}
+                href={href({ decade: prefix, page: 1 })}
+                className={`rounded-full px-3 py-1 text-xs transition ${
+                  decadePrefix === prefix
+                    ? "bg-accent font-medium text-background"
+                    : "border border-line text-muted hover:bg-surface-2"
+                }`}
+              >
+                {decade} ({count})
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {tagCounts.length > 0 && (
+          <div className="flex w-full flex-wrap gap-2 pt-1">
+            <Link
+              href={href({ tag: "", page: 1 })}
+              className={`rounded-full px-3 py-1 text-xs transition ${
+                tag === undefined
+                  ? "bg-accent font-medium text-background"
+                  : "border border-line text-muted hover:bg-surface-2"
+              }`}
+            >
+              All tags
+            </Link>
+            {tagCounts.slice(0, 12).map(({ genre: name, count }) => (
+              <Link
+                key={name}
+                href={href({ tag: name, page: 1 })}
+                className={`rounded-full px-3 py-1 text-xs transition ${
+                  tag === name
+                    ? "bg-accent font-medium text-background"
+                    : "border border-line text-muted hover:bg-surface-2"
+                }`}
+              >
+                #{name} ({count})
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <div className="flex w-full flex-wrap items-center gap-2 pt-1 text-xs text-muted">
+          <span className="uppercase tracking-wide">Sort</span>
+          {LIBRARY_SORTS.map((sortKey) => (
+            <Link
+              key={sortKey}
+              href={href({ sort: sortKey, page: 1 })}
+              className={`rounded-full px-2.5 py-1 transition ${
+                sort === sortKey
+                  ? "bg-foreground font-medium text-background"
+                  : "border border-line hover:bg-surface-2 hover:text-foreground"
+              }`}
+            >
+              {LIBRARY_SORT_LABELS[sortKey]}
             </Link>
           ))}
         </div>

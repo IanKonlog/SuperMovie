@@ -19,6 +19,7 @@ import { personHref } from "@/modules/tmdb/links";
 import { titleHref } from "@/modules/tmdb/links";
 import { PosterRow } from "@/modules/media/components/poster-row";
 import { TitleVideos } from "@/modules/tmdb/components/title-videos";
+import { TrailerPlayer } from "@/modules/tmdb/components/trailer-player";
 import type { QuickAddItem } from "@/modules/media/components/quick-add";
 import type { TitleVideo } from "@/modules/tmdb/types";
 
@@ -300,17 +301,10 @@ export default async function TitlePage({
                 className="card-enter flex flex-col gap-3"
               >
                 <h2 className="text-lg font-bold">Trailer</h2>
-                <div className="flex w-full justify-center">
-                  <div className="relative aspect-video w-[86%] max-w-2xl overflow-hidden rounded-xl border border-line bg-black">
-                    <iframe
-                      src={`https://www.youtube.com/embed/${title.youtubeKey}`}
-                      title={`${title.title} trailer`}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      className="absolute inset-0 h-full w-full border-0"
-                    />
-                  </div>
-                </div>
+                <TrailerPlayer
+                  youtubeKey={title.youtubeKey}
+                  title={`${title.title} trailer`}
+                />
               </section>
             )
           )}
@@ -496,7 +490,7 @@ export default async function TitlePage({
         {similar.length > 0 && (
           <section
             aria-label="More like this"
-            className="card-enter flex flex-col gap-2 lg:col-start-1 lg:row-start-2"
+            className="card-enter flex min-w-0 flex-col gap-2 lg:col-start-1 lg:row-start-2"
           >
             <h2 className="text-lg font-bold">More like this</h2>
             <PosterRow
@@ -515,7 +509,7 @@ export default async function TitlePage({
         {title.reviews.length > 0 && (
           <section
             aria-label="Reviews"
-            className="card-enter flex flex-col gap-3 lg:col-start-1 lg:row-start-3"
+            className="card-enter flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-3"
           >
             <h2 className="text-lg font-bold">Reviews</h2>
             <div className="columns-1 gap-3 xl:columns-2">

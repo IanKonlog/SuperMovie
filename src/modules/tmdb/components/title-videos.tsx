@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import type { TitleVideo } from "../types";
+import { TrailerPlayer } from "./trailer-player";
 
 type SeasonGroup = { seasonNumber: number; videos: TitleVideo[] };
 
@@ -63,7 +64,7 @@ export function TitleVideos({
   const [groupSeason, setGroupSeason] = useState<number | null>(
     hasSeriesVideos ? null : (availableSeasons[0]?.seasonNumber ?? null),
   );
-  const [playing, setPlaying] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   if (!hasSeriesVideos && availableSeasons.length === 0) return null;
 
@@ -72,11 +73,11 @@ export function TitleVideos({
       ? seriesVideos
       : (seasons.find((s) => s.seasonNumber === groupSeason)?.videos ?? []);
   const current =
-    activeVideos.find((v) => v.key === playing) ?? activeVideos[0] ?? null;
+    activeVideos.find((v) => v.key === selectedKey) ?? activeVideos[0] ?? null;
 
   function selectGroup(season: number | null) {
     setGroupSeason(season);
-    setPlaying(null);
+    setSelectedKey(null);
   }
 
   return (
@@ -114,17 +115,12 @@ export function TitleVideos({
       </div>
 
       {current && (
-        <div className="flex w-full justify-center">
-          <div className="pop-enter relative aspect-video w-[86%] max-w-2xl overflow-hidden rounded-xl border border-line bg-black">
-            <iframe
-              key={current.key}
-              src={`https://www.youtube.com/embed/${current.key}`}
-              title={current.name}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="absolute inset-0 h-full w-full border-0"
-            />
-          </div>
+        <div className="pop-enter">
+          <TrailerPlayer
+            key={current.key}
+            youtubeKey={current.key}
+            title={current.name}
+          />
         </div>
       )}
 
@@ -134,7 +130,7 @@ export function TitleVideos({
             key={video.key}
             video={video}
             active={current?.key === video.key}
-            onPlay={() => setPlaying(video.key)}
+            onPlay={() => setSelectedKey(video.key)}
           />
         ))}
       </div>

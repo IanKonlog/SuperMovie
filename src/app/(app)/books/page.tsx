@@ -1,4 +1,5 @@
 import { BooksClient } from "@/modules/books/components/books-client";
+import { GoodreadsImportForm } from "@/modules/books/components/goodreads-import-form";
 import { getBookCounts, listBooks } from "@/modules/books/queries";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export default async function BooksPage() {
         </span>
       </h1>
       <BooksClient books={books} />
+      <GoodreadsImportForm />
     </div>
   );
 }

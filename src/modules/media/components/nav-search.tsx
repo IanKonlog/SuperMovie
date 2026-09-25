@@ -9,6 +9,8 @@ import {
   useState,
 } from "react";
 import { addMediaItem, type ActionState } from "@/modules/media/actions";
+import { searchBooksAction } from "@/modules/books/actions";
+import type { BookSearchResult } from "@/modules/books/queries";
 import { Poster } from "@/modules/media/components/poster";
 import {
   WATCH_STATUSES,
@@ -19,12 +21,22 @@ import { searchMediaAction } from "@/modules/tmdb/actions";
 import { titleHref } from "@/modules/tmdb/links";
 import type { TmdbSearchResult } from "@/modules/tmdb/types";
 
+const SEARCH_TYPES = ["MOVIE", "SERIES", "BOOK"] as const;
+type SearchType = (typeof SEARCH_TYPES)[number];
+
+const SEARCH_TYPE_LABELS: Record<SearchType, string> = {
+  MOVIE: "Movie",
+  SERIES: "Series",
+  BOOK: "Book",
+};
+
 const initialState: ActionState = {};
 
 type SearchUiState =
   | { status: "idle" }
   | { status: "loading" }
-  | { status: "done"; results: TmdbSearchResult[] }
+  | { status: "done"; mediaType: MediaTypeValue; results: TmdbSearchResult[] }
+  | { status: "doneBooks"; results: BookSearchResult[] }
   | { status: "error"; message: string };
 
 function MagnifierIcon() {
@@ -46,7 +58,7 @@ function MagnifierIcon() {
 
 export function NavSearch() {
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState<MediaTypeValue>("MOVIE");
+  const [type, setType] = useState<SearchType>("MOVIE");
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState<SearchUiState>({ status: "idle" });
   const [manual, setManual] = useState(false);
@@ -97,12 +109,26 @@ export function NavSearch() {
     const id = ++requestId.current;
     const timer = setTimeout(async () => {
       setSearch({ status: "loading" });
-      const result = await searchMediaAction(trimmed, type);
-      if (requestId.current !== id) return;
-      if (result.error) {
-        setSearch({ status: "error", message: result.error });
+      if (type === "BOOK") {
+        const result = await searchBooksAction(trimmed);
+        if (requestId.current !== id) return;
+        setSearch(
+          result.error
+            ? { status: "error", message: result.error }
+            : { status: "doneBooks", results: result.results },
+        );
       } else {
-        setSearch({ status: "done", results: result.results });
+        const result = await searchMediaAction(trimmed, type);
+        if (requestId.current !== id) return;
+        if (result.error) {
+          setSearch({ status: "error", message: result.error });
+        } else {
+          setSearch({
+            status: "done",
+            mediaType: type,
+            results: result.results,
+          });
+        }
       }
     }, 400);
     return () => clearTimeout(timer);
@@ -135,7 +161,9 @@ export function NavSearch() {
         >
           <button
             type="button"
-            aria-label={open ? "Close search" : "Search movies and series"}
+            aria-label={
+              open ? "Close search" : "Search movies, series, and books"
+            }
             onClick={() => (open ? resetAndClose() : setOpen(true))}
             className="shrink-0 text-muted transition hover:text-foreground"
           >
@@ -148,23 +176,30 @@ export function NavSearch() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 maxLength={100}
-                placeholder={`Search TMDB for a ${type === "MOVIE" ? "movie" : "series"}…`}
-                aria-label="Search TMDB"
+                placeholder={
+                  type === "BOOK"
+                    ? "Search Google Books…"
+                    : `Search TMDB for a ${type === "MOVIE" ? "movie" : "series"}…`
+                }
+                aria-label="Search movies, series, or books"
                 className={inputClasses}
               />
               <div className="flex shrink-0 gap-1">
-                {(["MOVIE", "SERIES"] as MediaTypeValue[]).map((t) => (
+                {SEARCH_TYPES.map((t) => (
                   <button
                     key={t}
                     type="button"
-                    onClick={() => setType(t)}
+                    onClick={() => {
+                      setType(t);
+                      setSearch({ status: "idle" });
+                    }}
                     className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition ${
                       type === t
                         ? "bg-foreground text-background"
                         : "border border-line text-muted hover:bg-surface-2"
                     }`}
                   >
-                    {t === "MOVIE" ? "Movie" : "Series"}
+                    {SEARCH_TYPE_LABELS[t]}
                   </button>
                 ))}
               </div>
@@ -217,7 +252,7 @@ export function NavSearch() {
                 <button
                   type="submit"
                   disabled={manualPending}
-                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent/80 disabled:opacity-50"
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background transition hover:bg-accent/80 disabled:opacity-50"
                 >
                   {manualPending ? "Adding…" : "Add"}
                 </button>
@@ -252,15 +287,18 @@ export function NavSearch() {
                 )}
                 {search.status === "idle" && (
                   <p className="text-sm text-muted">
-                    Type at least 2 characters to search TMDB.
+                    Type at least 2 characters to search.
                   </p>
+                )}
+                {!manual && manualState.error && (
+                  <p className="text-sm text-red-500">{manualState.error}</p>
                 )}
                 {search.status === "done" && search.results.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
                     {search.results.map((item) => (
                       <Link
                         key={item.tmdbId}
-                        href={titleHref(type, item.tmdbId)}
+                        href={titleHref(search.mediaType, item.tmdbId)}
                         onClick={resetAndClose}
                         className="text-left transition hover:scale-[1.03]"
                       >
@@ -278,6 +316,75 @@ export function NavSearch() {
                           </p>
                         )}
                       </Link>
+                    ))}
+                  </div>
+                )}
+                {search.status === "doneBooks" && search.results.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {search.results.map((book) => (
+                      <form key={book.googleBooksId} action={manualAction}>
+                        <input type="hidden" name="title" value={book.title} />
+                        <input
+                          type="hidden"
+                          name="authors"
+                          value={book.authors.join(",")}
+                        />
+                        <input
+                          type="hidden"
+                          name="googleBooksId"
+                          value={book.googleBooksId}
+                        />
+                        {book.coverUrl && (
+                          <input
+                            type="hidden"
+                            name="coverUrl"
+                            value={book.coverUrl}
+                          />
+                        )}
+                        {book.pageCount !== null && (
+                          <input
+                            type="hidden"
+                            name="pageCount"
+                            value={book.pageCount}
+                          />
+                        )}
+                        {book.publishedDate && (
+                          <input
+                            type="hidden"
+                            name="publishedDate"
+                            value={book.publishedDate}
+                          />
+                        )}
+                        {book.description && (
+                          <input
+                            type="hidden"
+                            name="description"
+                            value={book.description}
+                          />
+                        )}
+                        <input
+                          type="hidden"
+                          name="status"
+                          value="WANT_TO_READ"
+                        />
+                        <button
+                          type="submit"
+                          aria-label={`Add ${book.title} to books`}
+                          className="text-left transition hover:scale-[1.03]"
+                        >
+                          <Poster
+                            posterUrl={book.coverUrl}
+                            title={book.title}
+                            size={104}
+                          />
+                          <p className="mt-1 line-clamp-2 text-xs font-medium">
+                            {book.title}
+                          </p>
+                          <p className="line-clamp-1 text-xs text-muted">
+                            {book.authors[0] ?? "Unknown author"}
+                          </p>
+                        </button>
+                      </form>
                     ))}
                   </div>
                 )}

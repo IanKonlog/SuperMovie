@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { parseCsv, readCsvUpload } from "@/lib/csv";
 import { isBookStatus, type BookStatusValue } from "./constants";
 import { searchGoogleBooks, type BookSearchResult } from "./queries";
 
@@ -155,4 +156,141 @@ export async function deleteBook(formData: FormData): Promise<void> {
   if (!id) return;
   await db.book.deleteMany({ where: { id } });
   revalidateBooks();
+}
+
+export type CsvImportState = {
+  error?: string;
+  added?: number;
+  skipped?: number;
+};
+
+const GOODREADS_MAX_ROWS = 5000;
+
+function shelfToStatus(shelf: string, hasDateRead: boolean): BookStatusValue {
+  switch (shelf) {
+    case "read":
+      return "FINISHED";
+    case "currently-reading":
+      return "READING";
+    case "to-read":
+      return "WANT_TO_READ";
+    default:
+      return hasDateRead ? "FINISHED" : "WANT_TO_READ";
+  }
+}
+
+export async function importGoodreads(
+  _prev: CsvImportState,
+  formData: FormData,
+): Promise<CsvImportState> {
+  await requireSession();
+
+  const text = await readCsvUpload(formData.get("csv"));
+  if (text === null) {
+    return { error: "Attach a Goodreads CSV export (max 2 MB)." };
+  }
+
+  const rows = parseCsv(text, GOODREADS_MAX_ROWS + 1);
+  if (rows.length < 2) return { error: "No data rows found in this CSV." };
+  if (rows.length > GOODREADS_MAX_ROWS) {
+    return { error: `Too many rows (max ${GOODREADS_MAX_ROWS}).` };
+  }
+
+  const header = rows[0].map((h) => h.trim().toLowerCase());
+  const titleIndex = header.indexOf("title");
+  if (titleIndex === -1) {
+    return {
+      error:
+        'This doesn\'t look like a Goodreads export ("Title" column missing).',
+    };
+  }
+  const authorIndex = header.indexOf("author");
+  const additionalIndex = header.indexOf("additional authors");
+  const ratingIndex = header.indexOf("my rating");
+  const shelfIndex = header.indexOf("bookshelves");
+  const dateReadIndex = header.indexOf("date read");
+
+  type Entry = {
+    title: string;
+    authors: string[];
+    status: BookStatusValue;
+    rating: number | null;
+  };
+  const entries: Entry[] = [];
+  const seen = new Set<string>();
+  for (const row of rows.slice(1)) {
+    const title = (row[titleIndex] ?? "").trim().slice(0, 200);
+    if (!title) continue;
+
+    const authors = `${authorIndex === -1 ? "" : (row[authorIndex] ?? "")},${
+      additionalIndex === -1 ? "" : (row[additionalIndex] ?? "")
+    }`
+      .split(",")
+      .map((a) => a.trim().slice(0, 80))
+      .filter(Boolean)
+      .slice(0, 5);
+
+    const ratingRaw = Number(ratingIndex === -1 ? 0 : row[ratingIndex]);
+    const rating =
+      Number.isInteger(ratingRaw) && ratingRaw >= 1 && ratingRaw <= 5
+        ? ratingRaw * 2
+        : null;
+
+    const shelf = (shelfIndex === -1 ? "" : (row[shelfIndex] ?? ""))
+      .trim()
+      .toLowerCase();
+    const hasDateRead =
+      dateReadIndex !== -1 && (row[dateReadIndex] ?? "").trim() !== "";
+
+    const key = `${title.toLowerCase()}:${(authors[0] ?? "").toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    entries.push({
+      title,
+      authors,
+      status: shelfToStatus(shelf, hasDateRead),
+      rating,
+    });
+  }
+  if (entries.length === 0)
+    return { error: "No usable rows found in this CSV." };
+
+  const existing = await db.book.findMany({
+    select: { title: true, authors: true },
+  });
+  const existingKeys = new Set(
+    existing.map(
+      (b) => `${b.title.toLowerCase()}:${(b.authors[0] ?? "").toLowerCase()}`,
+    ),
+  );
+
+  let added = 0;
+  let skipped = 0;
+  for (const entry of entries) {
+    const key = `${entry.title.toLowerCase()}:${(entry.authors[0] ?? "").toLowerCase()}`;
+    if (existingKeys.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    const created = await db.book
+      .create({
+        data: {
+          title: entry.title,
+          authors: entry.authors,
+          status: entry.status,
+          rating: entry.rating,
+        },
+        select: { id: true },
+      })
+      .catch(() => null);
+    if (!created) {
+      skipped += 1;
+      continue;
+    }
+    existingKeys.add(key);
+    added += 1;
+  }
+
+  if (added > 0) revalidateBooks();
+  return { added, skipped };
 }

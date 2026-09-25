@@ -3,11 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { parseCsv, readCsvUpload } from "@/lib/csv";
 import {
   deleteRatingFromTmdb,
   fetchSeriesSeasons,
+  searchTmdb,
   sendRatingToTmdb,
 } from "@/modules/tmdb/queries";
+import type { TmdbSearchResult } from "@/modules/tmdb/types";
 import { isMediaType, isWatchStatus, type WatchStatusValue } from "./constants";
 
 export type ActionState = { error?: string; success?: boolean };
@@ -704,6 +707,142 @@ export async function importLibrary(
 
   if (imported > 0) revalidateMedia();
   return { imported };
+}
+
+export type CsvImportState = {
+  error?: string;
+  added?: number;
+  skipped?: number;
+  matched?: number;
+};
+
+// Keep imports interactive: each lookup is a remote TMDB round-trip.
+const LETTERBOXD_LOOKUP_CAP = 150;
+const LETTERBOXD_MAX_ROWS = 5000;
+
+function letterboxdYear(value: string | undefined): number | null {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1870 || n > 2100) return null;
+  return n;
+}
+
+function letterboxdRating(value: string | undefined): number | null {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0 || n > 5) return null;
+  return Math.min(Math.max(Math.round(n * 2), 1), 10);
+}
+
+export async function importLetterboxd(
+  _prev: CsvImportState,
+  formData: FormData,
+): Promise<CsvImportState> {
+  await requireSession();
+
+  const text = await readCsvUpload(formData.get("csv"));
+  if (text === null) {
+    return { error: "Attach a Letterboxd CSV export (max 2 MB)." };
+  }
+
+  const rows = parseCsv(text, LETTERBOXD_MAX_ROWS + 1);
+  if (rows.length < 2) return { error: "No data rows found in this CSV." };
+  if (rows.length > LETTERBOXD_MAX_ROWS) {
+    return { error: `Too many rows (max ${LETTERBOXD_MAX_ROWS}).` };
+  }
+
+  const header = rows[0].map((h) => h.trim().toLowerCase());
+  const nameIndex = header.indexOf("name");
+  if (nameIndex === -1) {
+    return {
+      error:
+        'This doesn\'t look like a Letterboxd export ("Name" column missing).',
+    };
+  }
+  const yearIndex = header.indexOf("year");
+  const ratingIndex = header.indexOf("rating");
+
+  type Entry = { title: string; year: number | null; rating: number | null };
+  const entries: Entry[] = [];
+  const seen = new Set<string>();
+  for (const row of rows.slice(1)) {
+    const title = (row[nameIndex] ?? "").trim().slice(0, 200);
+    if (!title) continue;
+    const year = yearIndex === -1 ? null : letterboxdYear(row[yearIndex]);
+    const rating =
+      ratingIndex === -1 ? null : letterboxdRating(row[ratingIndex]);
+    const key = `${title.toLowerCase()}:${year ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    entries.push({ title, year, rating });
+  }
+  if (entries.length === 0)
+    return { error: "No usable rows found in this CSV." };
+
+  const existing = await db.mediaItem.findMany({
+    where: { type: "MOVIE" },
+    select: { title: true, tmdbId: true },
+  });
+  const existingKeys = new Set(
+    existing.map((e) => `MOVIE:${e.tmdbId ?? e.title}`),
+  );
+
+  let added = 0;
+  let skipped = 0;
+  let matched = 0;
+  let lookups = 0;
+
+  for (const entry of entries) {
+    let hit: TmdbSearchResult | null = null;
+    if (entry.year !== null && lookups < LETTERBOXD_LOOKUP_CAP) {
+      lookups += 1;
+      const results = await searchTmdb(entry.title, "MOVIE").catch(() => []);
+      hit =
+        results.find(
+          (r) => r.releaseDate?.slice(0, 4) === String(entry.year),
+        ) ?? null;
+    }
+
+    const key = `MOVIE:${hit ? hit.tmdbId : entry.title}`;
+    if (existingKeys.has(key)) {
+      skipped += 1;
+      continue;
+    }
+
+    const created = await db.mediaItem
+      .create({
+        data: {
+          title: entry.title,
+          type: "MOVIE",
+          status: "COMPLETED",
+          rating: entry.rating,
+          tmdbId: hit ? hit.tmdbId : null,
+          posterUrl:
+            hit &&
+            hit.posterUrl !== null &&
+            /^https:\/\/image\.tmdb\.org\/t\/p\/[\w./-]+$/.test(hit.posterUrl)
+              ? hit.posterUrl
+              : null,
+          overview: hit ? hit.overview.slice(0, 2000) || null : null,
+          releaseDate:
+            hit && /^\d{4}-\d{2}-\d{2}$/.test(hit.releaseDate ?? "")
+              ? hit.releaseDate
+              : null,
+          voteAverage: hit ? hit.voteAverage : null,
+          genres: hit ? hit.genres.slice(0, 8) : [],
+        },
+        select: { id: true },
+      })
+      .catch(() => null);
+    if (!created) {
+      skipped += 1;
+      continue;
+    }
+    existingKeys.add(key);
+    added += 1;
+    if (hit) matched += 1;
+  }
+
+  if (added > 0) revalidateMedia();
+  return { added, skipped, matched };
 }
 
 export async function notifyAiringEpisodes(

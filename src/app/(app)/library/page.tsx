@@ -1,4 +1,5 @@
 import { ImportForm } from "@/modules/media/components/import-form";
+import { CsvImportForm } from "@/modules/media/components/csv-import-form";
 import { LibrarySection } from "@/modules/media/components/library-section";
 import { Pagination } from "@/modules/media/components/pagination";
 import {
@@ -143,7 +144,7 @@ export default async function LibraryPage({
             href={href({ genre: "", page: 1 })}
             className={`rounded-full px-3 py-1 text-xs transition ${
               genre === undefined
-                ? "bg-accent font-medium text-white"
+                ? "bg-accent font-medium text-background"
                 : "border border-line text-muted hover:bg-surface-2"
             }`}
           >
@@ -155,7 +156,7 @@ export default async function LibraryPage({
               href={href({ genre: name, page: 1 })}
               className={`rounded-full px-3 py-1 text-xs transition ${
                 genre === name
-                  ? "bg-accent font-medium text-white"
+                  ? "bg-accent font-medium text-background"
                   : "border border-line text-muted hover:bg-surface-2"
               }`}
             >
@@ -219,6 +220,7 @@ export default async function LibraryPage({
           Export library as JSON
         </a>
         <ImportForm />
+        <CsvImportForm />
       </div>
     </div>
   );

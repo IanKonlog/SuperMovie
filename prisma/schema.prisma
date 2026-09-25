@@ -46,6 +46,7 @@ model MediaItem {
   seasons MediaSeason[]
   watchedEpisodes EpisodeWatched[]
 
+  completedAt DateTime? // when the item was marked COMPLETED (Wrapped/year stats)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -84,6 +85,7 @@ model Book {
   pageCount     Int?
   currentPage   Int        @default(0)
   publishedDate String?
+  completedAt   DateTime? // when the book was marked FINISHED (Wrapped/year stats)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

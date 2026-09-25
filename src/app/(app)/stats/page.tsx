@@ -253,6 +253,26 @@ export default async function StatsPage() {
         </p>
       </div>
 
+      <Link
+        href="/wrapped"
+        className="group flex items-center justify-between gap-3 rounded-lg border border-accent/40 bg-surface p-4 transition hover:border-accent"
+      >
+        <div className="flex flex-col">
+          <span className="text-xs font-medium uppercase tracking-[0.2em] text-accent">
+            New
+          </span>
+          <span className="text-sm font-medium">
+            Your {new Date().getFullYear()} Wrapped — watch the story
+          </span>
+        </div>
+        <span
+          aria-hidden
+          className="text-muted transition group-hover:translate-x-0.5 group-hover:text-foreground"
+        >
+          →
+        </span>
+      </Link>
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <Kpi icon={<FilmIcon />} label="Titles tracked" value={items.length} />
         <Kpi icon={<ClockIcon />} label="Hours watched" value={hoursWatched} />

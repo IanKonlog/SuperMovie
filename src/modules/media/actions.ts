@@ -218,6 +218,7 @@ export async function addMediaItem(
         type,
         status: finalStatus,
         rating,
+        completedAt: finalStatus === "COMPLETED" ? new Date() : null,
         tmdbId,
         posterUrl,
         overview,
@@ -320,6 +321,7 @@ export async function updateMediaItem(
     isFavorite?: boolean;
     progressNote?: string | null;
     comment?: string | null;
+    completedAt?: Date | null;
   } = {};
 
   if (status !== null) {
@@ -367,6 +369,14 @@ export async function updateMediaItem(
     where: { id },
     select: { title: true, status: true, rating: true },
   });
+
+  if (data.status !== undefined && before) {
+    if (data.status === "COMPLETED" && before.status !== "COMPLETED") {
+      data.completedAt = new Date();
+    } else if (data.status !== "COMPLETED" && before.status === "COMPLETED") {
+      data.completedAt = null;
+    }
+  }
 
   try {
     const result = await db.mediaItem.updateMany({
@@ -628,6 +638,7 @@ export async function importLibrary(
           type,
           status,
           rating,
+          completedAt: status === "COMPLETED" ? new Date() : null,
           isFavorite: item.isFavorite === true,
           progressNote:
             typeof item.progressNote === "string"
@@ -759,8 +770,22 @@ export async function importLetterboxd(
   }
   const yearIndex = header.indexOf("year");
   const ratingIndex = header.indexOf("rating");
+  // films.csv has "Date"; diary.csv also has "WatchedDate", which wins.
+  const watchedIndex = header.indexOf("watcheddate");
+  const dateIndex = header.indexOf("date");
 
-  type Entry = { title: string; year: number | null; rating: number | null };
+  const isoDate = (value: string | undefined): Date | null => {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return null;
+    const parsed = new Date(`${value.trim()}T00:00:00Z`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  type Entry = {
+    title: string;
+    year: number | null;
+    rating: number | null;
+    completedAt: Date | null;
+  };
   const entries: Entry[] = [];
   const seen = new Set<string>();
   for (const row of rows.slice(1)) {
@@ -769,10 +794,16 @@ export async function importLetterboxd(
     const year = yearIndex === -1 ? null : letterboxdYear(row[yearIndex]);
     const rating =
       ratingIndex === -1 ? null : letterboxdRating(row[ratingIndex]);
+    const completedAt =
+      watchedIndex !== -1
+        ? isoDate(row[watchedIndex])
+        : dateIndex !== -1
+          ? isoDate(row[dateIndex])
+          : null;
     const key = `${title.toLowerCase()}:${year ?? ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    entries.push({ title, year, rating });
+    entries.push({ title, year, rating, completedAt });
   }
   if (entries.length === 0)
     return { error: "No usable rows found in this CSV." };
@@ -814,6 +845,7 @@ export async function importLetterboxd(
           type: "MOVIE",
           status: "COMPLETED",
           rating: entry.rating,
+          completedAt: entry.completedAt ?? new Date(),
           tmdbId: hit ? hit.tmdbId : null,
           posterUrl:
             hit &&

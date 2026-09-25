@@ -81,6 +81,7 @@ export async function addBook(
         title,
         authors,
         status: statusRaw,
+        completedAt: statusRaw === "FINISHED" ? new Date() : null,
         googleBooksId,
         coverUrl,
         description: description || null,
@@ -109,12 +110,25 @@ export async function updateBook(
     status?: BookStatusValue;
     rating?: number | null;
     currentPage?: number;
+    completedAt?: Date | null;
   } = {};
 
   const status = formData.get("status");
   if (status !== null) {
     if (!isBookStatus(status)) return { error: "Invalid status." };
     data.status = status as BookStatusValue;
+  }
+
+  const before = await db.book.findUnique({
+    where: { id },
+    select: { status: true },
+  });
+  if (data.status !== undefined && before) {
+    if (data.status === "FINISHED" && before.status !== "FINISHED") {
+      data.completedAt = new Date();
+    } else if (data.status !== "FINISHED" && before.status === "FINISHED") {
+      data.completedAt = null;
+    }
   }
 
   const ratingRaw = formData.get("rating");
@@ -210,11 +224,21 @@ export async function importGoodreads(
   const shelfIndex = header.indexOf("bookshelves");
   const dateReadIndex = header.indexOf("date read");
 
+  // Goodreads exports "Date Read" as YYYY/MM/DD.
+  const parseGoodreadsDate = (value: string | undefined): Date | null => {
+    const trimmed = (value ?? "").trim();
+    const match = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(trimmed);
+    if (!match) return null;
+    const parsed = new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00Z`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
   type Entry = {
     title: string;
     authors: string[];
     status: BookStatusValue;
     rating: number | null;
+    completedAt: Date | null;
   };
   const entries: Entry[] = [];
   const seen = new Set<string>();
@@ -250,6 +274,9 @@ export async function importGoodreads(
       authors,
       status: shelfToStatus(shelf, hasDateRead),
       rating,
+      completedAt: parseGoodreadsDate(
+        dateReadIndex === -1 ? undefined : row[dateReadIndex],
+      ),
     });
   }
   if (entries.length === 0)
@@ -279,6 +306,7 @@ export async function importGoodreads(
           authors: entry.authors,
           status: entry.status,
           rating: entry.rating,
+          completedAt: entry.completedAt,
         },
         select: { id: true },
       })

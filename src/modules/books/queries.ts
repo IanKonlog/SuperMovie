@@ -125,3 +125,47 @@ export async function getBookCounts(): Promise<{
   const total = grouped.reduce((sum, g) => sum + g._count._all, 0);
   return { total, byStatus };
 }
+
+export type BookStats = {
+  total: number;
+  byStatus: Map<BookStatusValue, number>;
+  ratedCount: number;
+  averageRating: number | null;
+  pagesRead: number;
+};
+
+export async function getBookStats(): Promise<BookStats> {
+  const books = await db.book.findMany({
+    select: {
+      status: true,
+      rating: true,
+      pageCount: true,
+      currentPage: true,
+    },
+  });
+
+  const byStatus = new Map<BookStatusValue, number>();
+  let ratedCount = 0;
+  let ratingSum = 0;
+  let pagesRead = 0;
+  for (const book of books) {
+    byStatus.set(book.status, (byStatus.get(book.status) ?? 0) + 1);
+    if (book.rating !== null) {
+      ratedCount += 1;
+      ratingSum += book.rating;
+    }
+    if (book.status === "FINISHED") {
+      pagesRead += book.pageCount ?? 0;
+    } else if (book.status === "READING") {
+      pagesRead += book.currentPage;
+    }
+  }
+
+  return {
+    total: books.length,
+    byStatus,
+    ratedCount,
+    averageRating: ratedCount > 0 ? ratingSum / ratedCount : null,
+    pagesRead,
+  };
+}

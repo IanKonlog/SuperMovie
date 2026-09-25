@@ -1,42 +1,136 @@
 import Link from "next/link";
 import { PosterRow } from "@/modules/media/components/poster-row";
-import { db } from "@/lib/db";
 import { ShareButton } from "@/modules/media/components/share-button";
-import { getSeasonsByItemId, getStatsItems } from "@/modules/media/queries";
+import {
+  getRecentActivity,
+  getSeasonsByItemId,
+  getShareToken,
+  getStatsItems,
+} from "@/modules/media/queries";
+import { getBookStats } from "@/modules/books/queries";
 import { fetchRuntimeMinutes } from "@/modules/tmdb/queries";
 import { titleHref } from "@/modules/tmdb/links";
+import {
+  ActivityIcon,
+  BookIcon,
+  BookOpenIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  EyeIcon,
+  FilmIcon,
+  ShareIcon,
+} from "@/lib/icons";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Your stats — SuperMovie" };
 
-function Bar({
+function Card({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`rounded-lg border border-line bg-surface p-5 ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SectionHeader({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="mb-4 flex items-baseline justify-between gap-3">
+      <h2 className="text-sm font-medium">{title}</h2>
+      {subtitle && <span className="text-xs text-muted">{subtitle}</span>}
+    </div>
+  );
+}
+
+function Kpi({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <Card className="flex flex-col justify-between gap-3 p-4">
+      <div className="flex items-center gap-2 text-muted">
+        {icon}
+        <span className="text-xs">{label}</span>
+      </div>
+      <span className="font-mono text-2xl font-semibold tracking-tight tabular-nums">
+        {value}
+      </span>
+    </Card>
+  );
+}
+
+function BarRow({
   label,
   value,
   max,
-  hint,
 }: {
   label: string;
   value: number;
   max: number;
-  hint?: string;
 }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  const pct = max > 0 ? Math.max(Math.round((value / max) * 100), 4) : 0;
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between text-sm">
-        <span className="font-medium">{label}</span>
-        <span className="text-muted">
+        <span className="line-clamp-1">{label}</span>
+        <span className="font-mono text-xs tabular-nums text-muted">
           {value}
-          {hint ? ` ${hint}` : ""}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-surface-2">
+      <div className="h-1.5 overflow-hidden rounded-full bg-surface-2">
         <div
-          className="h-full rounded-full bg-accent transition-all duration-500"
+          className="h-full rounded-full bg-accent"
           style={{ width: `${pct}%` }}
         />
       </div>
+    </div>
+  );
+}
+
+function Histogram({ counts }: { counts: Map<number, number> }) {
+  const max = Math.max(...counts.values(), 1);
+  return (
+    <div className="flex h-40 items-end gap-1.5">
+      {Array.from({ length: 10 }, (_, i) => i + 1).map((score) => {
+        const count = counts.get(score) ?? 0;
+        const pct = Math.round((count / max) * 100);
+        return (
+          <div
+            key={score}
+            className="flex h-full flex-1 flex-col justify-end gap-1"
+          >
+            <span className="text-center font-mono text-[10px] tabular-nums text-muted">
+              {count > 0 ? count : ""}
+            </span>
+            <div
+              className={`rounded-t-sm ${count > 0 ? "bg-accent" : "bg-surface-2"}`}
+              style={{ height: `${count > 0 ? Math.max(pct, 3) : 2}%` }}
+            />
+            <span className="text-center font-mono text-[10px] tabular-nums text-muted">
+              {score}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -47,22 +141,20 @@ function relativeDay(date: Date): string {
   );
   if (days <= 0) return "today";
   if (days === 1) return "yesterday";
-  if (days < 7) return `${days} days ago`;
+  if (days < 7) return `${days}d ago`;
   return date.toISOString().slice(0, 10);
 }
 
 export default async function StatsPage() {
-  const [items, seasonsByItem, activity, share] = await Promise.all([
-    getStatsItems(),
-    getSeasonsByItemId(),
-    db.activityEvent.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 15,
-      select: { id: true, message: true, createdAt: true },
-    }),
-    db.shareToken.findFirst({ select: { token: true } }),
-  ]);
-  const shareToken = share ? `/s/${share.token}` : null;
+  const [items, seasonsByItem, books, activity, shareToken] = await Promise.all(
+    [
+      getStatsItems(),
+      getSeasonsByItemId(),
+      getBookStats(),
+      getRecentActivity(12),
+      getShareToken(),
+    ],
+  );
 
   const completed = items.filter((i) => i.status === "COMPLETED");
   const watching = items.filter((i) => i.status === "WATCHING");
@@ -113,105 +205,184 @@ export default async function StatsPage() {
 
   const ratingCounts = new Map<number, number>();
   for (const item of rated) {
-    const score = item.rating as number;
-    ratingCounts.set(score, (ratingCounts.get(score) ?? 0) + 1);
+    ratingCounts.set(
+      item.rating as number,
+      (ratingCounts.get(item.rating as number) ?? 0) + 1,
+    );
   }
+  const averageRating =
+    rated.length > 0
+      ? rated.reduce((sum, i) => sum + (i.rating as number), 0) / rated.length
+      : null;
 
   const topRated = items
     .filter((i) => i.rating !== null && i.rating >= 8 && i.tmdbId !== null)
     .sort((a, b) => (b.rating as number) - (a.rating as number))
     .slice(0, 10);
 
-  const statCard =
-    "rounded-xl border border-line bg-surface p-4 flex flex-col gap-1";
+  const bookSegments = [
+    {
+      label: "Finished",
+      count: books.byStatus.get("FINISHED") ?? 0,
+      tint: "bg-foreground",
+    },
+    {
+      label: "Reading",
+      count: books.byStatus.get("READING") ?? 0,
+      tint: "bg-foreground/60",
+    },
+    {
+      label: "Want to read",
+      count: books.byStatus.get("WANT_TO_READ") ?? 0,
+      tint: "bg-foreground/30",
+    },
+    {
+      label: "Abandoned",
+      count: books.byStatus.get("ABANDONED") ?? 0,
+      tint: "bg-foreground/15",
+    },
+  ].filter((s) => s.count > 0);
+  const segmentTotal = bookSegments.reduce((sum, s) => sum + s.count, 0);
 
   return (
-    <div className="page-enter flex flex-col gap-8">
-      <h1 className="text-2xl font-extrabold">Your stats</h1>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className={statCard}>
-          <span className="text-3xl font-extrabold text-accent">
-            {items.length}
-          </span>
-          <span className="text-xs text-muted">titles tracked</span>
-        </div>
-        <div className={statCard}>
-          <span className="text-3xl font-extrabold text-accent">
-            {completed.length}
-          </span>
-          <span className="text-xs text-muted">completed</span>
-        </div>
-        <div className={statCard}>
-          <span className="text-3xl font-extrabold text-accent">
-            {watching.length}
-          </span>
-          <span className="text-xs text-muted">watching now</span>
-        </div>
-        <div className={statCard}>
-          <span className="text-3xl font-extrabold text-accent">
-            {hoursWatched}
-          </span>
-          <span className="text-xs text-muted">hours watched</span>
-        </div>
+    <div className="page-enter flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Your stats</h1>
+        <p className="mt-1 text-sm text-muted">
+          A live picture of everything you watch and read.
+        </p>
       </div>
 
-      {topGenres.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-bold">Genres you finish</h2>
-          <div className="flex flex-col gap-2.5">
-            {topGenres.map(([genre, count]) => (
-              <Bar
-                key={genre}
-                label={genre}
-                value={count}
-                max={topGenres[0][1]}
-                hint="completed"
-              />
-            ))}
-          </div>
-        </section>
-      )}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        <Kpi icon={<FilmIcon />} label="Titles tracked" value={items.length} />
+        <Kpi icon={<ClockIcon />} label="Hours watched" value={hoursWatched} />
+        <Kpi
+          icon={<CheckCircleIcon />}
+          label="Completed"
+          value={completed.length}
+        />
+        <Kpi icon={<EyeIcon />} label="Watching now" value={watching.length} />
+        <Kpi
+          icon={<BookIcon />}
+          label="Books finished"
+          value={books.byStatus.get("FINISHED") ?? 0}
+        />
+        <Kpi
+          icon={<BookOpenIcon />}
+          label="Pages read"
+          value={books.pagesRead.toLocaleString("en-US")}
+        />
+      </div>
 
-      {ratingCounts.size > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-bold">How you rate</h2>
-          <div className="flex flex-col gap-2.5">
-            {[...ratingCounts.entries()]
-              .sort((a, b) => b[0] - a[0])
-              .map(([score, count]) => (
-                <Bar
-                  key={score}
-                  label={`${score}/10`}
+      <div className="grid gap-3 lg:grid-cols-2">
+        {ratingCounts.size > 0 && (
+          <Card>
+            <SectionHeader
+              title="How you rate"
+              subtitle={
+                averageRating !== null
+                  ? `average ${averageRating.toFixed(1)}/10 · ${rated.length} rated`
+                  : undefined
+              }
+            />
+            <Histogram counts={ratingCounts} />
+          </Card>
+        )}
+
+        {topGenres.length > 0 && (
+          <Card>
+            <SectionHeader
+              title="Genres you finish"
+              subtitle={`${topGenres.length} of ${genreCounts.size}`}
+            />
+            <div className="flex flex-col gap-3">
+              {topGenres.map(([genre, count]) => (
+                <BarRow
+                  key={genre}
+                  label={genre}
                   value={count}
-                  max={Math.max(...ratingCounts.values())}
-                  hint="titles"
+                  max={topGenres[0][1]}
                 />
               ))}
-          </div>
-        </section>
-      )}
+            </div>
+          </Card>
+        )}
+      </div>
 
-      {decades.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-bold">Eras you finish</h2>
-          <div className="flex flex-col gap-2.5">
-            {decades.map(([decade, count]) => (
-              <Bar
-                key={decade}
-                label={decade}
-                value={count}
-                max={Math.max(...decades.map(([, c]) => c))}
-                hint="completed"
-              />
-            ))}
-          </div>
-        </section>
-      )}
+      <div className="grid gap-3 lg:grid-cols-2">
+        {decades.length > 0 && (
+          <Card>
+            <SectionHeader title="Eras you finish" subtitle="by decade" />
+            <div className="flex flex-wrap gap-2">
+              {decades.map(([decade, count]) => (
+                <span
+                  key={decade}
+                  className="rounded-md border border-line bg-surface-2 px-2.5 py-1.5 text-xs"
+                >
+                  {decade}{" "}
+                  <span className="font-mono tabular-nums text-muted">
+                    {count}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {books.total > 0 && (
+          <Card>
+            <SectionHeader
+              title="Books"
+              subtitle={`${books.total} on the shelf`}
+            />
+            <div className="flex flex-col gap-4">
+              {segmentTotal > 0 && (
+                <div className="flex h-2 overflow-hidden rounded-full bg-surface-2">
+                  {bookSegments.map((segment) => (
+                    <div
+                      key={segment.label}
+                      className={segment.tint}
+                      style={{
+                        width: `${(segment.count / segmentTotal) * 100}%`,
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+              <dl className="flex flex-col gap-2 text-sm">
+                {bookSegments.map((segment) => (
+                  <div
+                    key={segment.label}
+                    className="flex items-center justify-between gap-3"
+                  >
+                    <dt className="flex items-center gap-2 text-muted">
+                      <span
+                        className={`h-2 w-2 rounded-full ${segment.tint}`}
+                      />
+                      {segment.label}
+                    </dt>
+                    <dd className="font-mono text-xs tabular-nums">
+                      {segment.count}
+                    </dd>
+                  </div>
+                ))}
+                {books.averageRating !== null && (
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-muted">Average rating</dt>
+                    <dd className="font-mono text-xs tabular-nums">
+                      {books.averageRating.toFixed(1)}/10
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          </Card>
+        )}
+      </div>
 
       {topRated.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-bold">Your hall of fame</h2>
+          <h2 className="text-sm font-medium">Your hall of fame</h2>
           <PosterRow
             items={topRated.map((item) => ({
               key: item.id,
@@ -227,32 +398,44 @@ export default async function StatsPage() {
         </section>
       )}
 
-      {activity.length > 0 && (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-bold">Recent activity</h2>
-          <ol className="flex flex-col gap-2">
-            {activity.map((event) => (
-              <li
-                key={event.id}
-                className="flex items-baseline justify-between gap-3 rounded-lg border border-line bg-surface px-3 py-2 text-sm"
-              >
-                <span>{event.message}</span>
-                <span className="shrink-0 text-xs text-muted">
-                  {relativeDay(event.createdAt)}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+        {activity.length > 0 && (
+          <Card>
+            <SectionHeader title="Recent activity" subtitle="latest 12" />
+            <ol className="flex flex-col">
+              {activity.map((event, index) => (
+                <li
+                  key={event.id}
+                  className={`flex items-baseline gap-3 py-2 ${
+                    index > 0 ? "border-t border-line" : ""
+                  }`}
+                >
+                  <ActivityIcon className="h-3.5 w-3.5 shrink-0 translate-y-0.5 text-muted" />
+                  <span className="min-w-0 flex-1 text-sm">
+                    {event.message}
+                  </span>
+                  <span className="shrink-0 font-mono text-xs text-muted">
+                    {relativeDay(event.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </Card>
+        )}
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-bold">Share your taste</h2>
-        <p className="text-sm text-muted">
-          A public, read-only wall of your top-rated titles and genre profile.
-        </p>
-        <ShareButton activeToken={shareToken} />
-      </section>
+        <Card className="flex flex-col gap-3">
+          <div className="flex items-center gap-2 text-muted">
+            <ShareIcon />
+            <h2 className="text-sm font-medium text-foreground">
+              Share your taste
+            </h2>
+          </div>
+          <p className="text-sm text-muted">
+            A public, read-only wall of your top-rated titles and genre profile.
+          </p>
+          <ShareButton activeToken={shareToken ? `/s/${shareToken}` : null} />
+        </Card>
+      </div>
 
       <Link
         href="/library"

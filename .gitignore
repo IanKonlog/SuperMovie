@@ -41,4 +41,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# local planning docs (kept private, not for the open-source repo)
+/docs/
+
 /src/generated/prisma

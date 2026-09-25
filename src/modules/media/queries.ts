@@ -288,3 +288,16 @@ export async function getWatchedEpisodeKeys(): Promise<
   }
   return byItem;
 }
+
+export async function getRecentActivity(limit = 15) {
+  return db.activityEvent.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: { id: true, message: true, createdAt: true },
+  });
+}
+
+export async function getShareToken(): Promise<string | null> {
+  const share = await db.shareToken.findFirst({ select: { token: true } });
+  return share ? share.token : null;
+}

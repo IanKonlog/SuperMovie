@@ -3,6 +3,7 @@ import { logout } from "@/app/login/actions";
 import { NavLinks } from "./nav-links";
 import { MobileNav } from "./mobile-nav";
 import { NavSearch } from "@/modules/media/components/nav-search";
+import { ThemeToggle } from "./theme-toggle";
 
 export default async function AppLayout({
   children,
@@ -23,6 +24,7 @@ export default async function AppLayout({
           </div>
           <div className="ml-auto flex items-center gap-3 text-sm sm:gap-4">
             <NavSearch />
+            <ThemeToggle />
             <span className="hidden text-muted sm:inline">
               {session.username}
             </span>

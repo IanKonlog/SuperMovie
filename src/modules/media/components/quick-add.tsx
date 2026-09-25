@@ -312,7 +312,7 @@ export function QuickAdd({
               <button
                 type="submit"
                 disabled={pending}
-                className="mt-1 self-end rounded-md bg-white px-3 py-2 text-sm font-bold text-black transition hover:bg-white/80 disabled:opacity-50"
+                className="mt-1 self-end rounded-md bg-foreground px-3 py-2 text-sm font-bold text-background transition hover:bg-foreground/80 disabled:opacity-50"
               >
                 {pending ? "Adding…" : "＋ Add"}
               </button>

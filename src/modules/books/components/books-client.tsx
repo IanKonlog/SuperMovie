@@ -173,7 +173,7 @@ function BookSearch() {
             <button
               type="submit"
               disabled={adding}
-              className="rounded-md bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-white/80 disabled:opacity-50"
+              className="rounded-md bg-foreground px-4 py-2 text-sm font-bold text-background transition hover:bg-foreground/80 disabled:opacity-50"
             >
               {adding ? "Adding…" : "＋ Add"}
             </button>

@@ -19,7 +19,7 @@ export function ReviewCard({
   return (
     <article className="break-inside-avoid rounded-xl border border-line bg-surface p-4 transition hover:border-muted/50">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-bold text-white">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-bold text-background">
           {author.charAt(0).toUpperCase()}
         </span>
         <span className="font-medium">{author}</span>

@@ -212,7 +212,7 @@ export function SeasonTracker({
                     }
                     className={`flex h-9 items-center justify-center rounded-md text-xs font-medium transition ${
                       watched
-                        ? "bg-accent text-white"
+                        ? "bg-accent text-background"
                         : "border border-line text-muted hover:bg-surface-2 hover:text-foreground"
                     }`}
                   >

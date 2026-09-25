@@ -183,7 +183,7 @@ export default async function HomePage({
               href={genre ? "/" : "#"}
               className={`rounded-full px-3 py-1 text-xs transition ${
                 genre === undefined
-                  ? "bg-accent font-medium text-white"
+                  ? "bg-accent font-medium text-background"
                   : "border border-line text-muted hover:bg-surface-2"
               }`}
             >
@@ -197,7 +197,7 @@ export default async function HomePage({
                 }
                 className={`rounded-full px-3 py-1 text-xs transition ${
                   genre === name
-                    ? "bg-accent font-medium text-white"
+                    ? "bg-accent font-medium text-background"
                     : "border border-line text-muted hover:bg-surface-2"
                 }`}
               >

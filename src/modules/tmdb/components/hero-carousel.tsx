@@ -112,7 +112,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
                       type="button"
                       tabIndex={active ? 0 : -1}
                       onClick={() => setAdding(slide)}
-                      className="rounded-md bg-white px-5 py-2.5 text-sm font-bold text-black transition hover:bg-white/80"
+                      className="rounded-md bg-foreground px-5 py-2.5 text-sm font-bold text-background transition hover:bg-foreground/80"
                     >
                       ＋ Add to library
                     </button>
@@ -164,7 +164,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
               className={`h-1.5 rounded-full transition-all duration-300 ${
                 i === index
                   ? "w-8 bg-accent"
-                  : "w-3 bg-white/40 hover:bg-white/70"
+                  : "w-3 bg-foreground/40 hover:bg-foreground/70"
               }`}
             />
           ))}

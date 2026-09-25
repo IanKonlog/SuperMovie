@@ -63,7 +63,7 @@ export function MoodBrowse({ genres }: { genres: string[] }) {
             aria-pressed={picked.includes(genre)}
             className={`rounded-full px-3 py-1 text-xs transition ${
               picked.includes(genre)
-                ? "bg-accent font-medium text-white"
+                ? "bg-accent font-medium text-background"
                 : "border border-line text-muted hover:bg-surface-2"
             }`}
           >
@@ -88,7 +88,7 @@ export function MoodBrowse({ genres }: { genres: string[] }) {
           type="button"
           onClick={find}
           disabled={pending}
-          className="rounded-lg bg-white px-4 py-1.5 text-sm font-bold text-black transition hover:bg-white/80 disabled:opacity-50"
+          className="rounded-lg bg-foreground px-4 py-1.5 text-sm font-bold text-background transition hover:bg-foreground/80 disabled:opacity-50"
         >
           {pending ? "Finding…" : "Find a movie"}
         </button>

@@ -80,7 +80,7 @@ export function RandomPick({ items }: { items: PickItem[] }) {
                     <Link
                       href={titleHref(pick.type, pick.tmdbId)}
                       onClick={() => setPick(null)}
-                      className="rounded-md bg-white px-3 py-1.5 text-xs font-bold text-black transition hover:bg-white/80"
+                      className="rounded-md bg-foreground px-3 py-1.5 text-xs font-bold text-background transition hover:bg-foreground/80"
                     >
                       Open ↗
                     </Link>

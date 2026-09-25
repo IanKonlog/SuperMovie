@@ -247,7 +247,7 @@ export function MediaDetailPanel({
             <button
               type="submit"
               disabled={detailPending}
-              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:bg-accent/80 disabled:opacity-50"
+              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-background transition hover:bg-accent/80 disabled:opacity-50"
             >
               {detailPending ? "Saving…" : "Save"}
             </button>

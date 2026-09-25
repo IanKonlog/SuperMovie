@@ -42,7 +42,7 @@ export function ShareButton({ activeToken }: { activeToken: string | null }) {
           <button
             type="button"
             onClick={copy}
-            className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-black transition hover:bg-white/80"
+            className="rounded-lg bg-foreground px-3 py-1.5 text-xs font-bold text-background transition hover:bg-foreground/80"
           >
             {copied ? "Copied ✓" : "Copy share link"}
           </button>

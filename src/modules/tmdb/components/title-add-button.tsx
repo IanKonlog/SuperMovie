@@ -12,7 +12,7 @@ export function TitleAddButton({ item }: { item: QuickAddItem }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md bg-white px-5 py-2.5 text-sm font-bold text-black transition hover:bg-white/80"
+        className="rounded-md bg-foreground px-5 py-2.5 text-sm font-bold text-background transition hover:bg-foreground/80"
       >
         ＋ Add to library
       </button>

@@ -23,7 +23,7 @@ export function ImportForm() {
         <button
           type="submit"
           disabled={pending}
-          className="self-start rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent/80 disabled:opacity-50"
+          className="self-start rounded-lg bg-accent px-4 py-2 text-sm font-medium text-background transition hover:bg-accent/80 disabled:opacity-50"
         >
           {pending ? "Importing…" : "Import"}
         </button>

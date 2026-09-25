@@ -86,7 +86,7 @@ export function PersonCredits({ credits }: { credits: PersonCredit[] }) {
             aria-pressed={genre === null}
             className={`rounded-full px-3 py-1 text-xs transition ${
               genre === null
-                ? "bg-accent font-medium text-white"
+                ? "bg-accent font-medium text-background"
                 : "border border-line text-muted hover:bg-surface-2"
             }`}
           >
@@ -100,7 +100,7 @@ export function PersonCredits({ credits }: { credits: PersonCredit[] }) {
               aria-pressed={genre === name}
               className={`rounded-full px-3 py-1 text-xs transition ${
                 genre === name
-                  ? "bg-accent font-medium text-white"
+                  ? "bg-accent font-medium text-background"
                   : "border border-line text-muted hover:bg-surface-2"
               }`}
             >

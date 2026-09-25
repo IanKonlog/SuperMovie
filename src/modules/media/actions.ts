@@ -56,6 +56,7 @@ async function setSeasonWatchedState(
             mediaItemId,
             seasonNumber,
             episodeNumber: i + 1,
+            watchedAt: new Date(),
           })),
         });
         count = season.episodeCount;
@@ -86,7 +87,12 @@ async function setEpisodeWatchedState(
             },
           },
           update: {},
-          create: { mediaItemId, seasonNumber, episodeNumber },
+          create: {
+            mediaItemId,
+            seasonNumber,
+            episodeNumber,
+            watchedAt: new Date(),
+          },
         })
         .catch(() => undefined);
     } else {
@@ -288,12 +294,14 @@ async function seedSeasons(
     skipDuplicates: true,
   });
   if (allWatched) {
+    const now = new Date();
     await db.episodeWatched.createMany({
       data: seasons.flatMap((s) =>
         Array.from({ length: s.episodeCount }, (_, i) => ({
           mediaItemId,
           seasonNumber: s.seasonNumber,
           episodeNumber: i + 1,
+          watchedAt: now,
         })),
       ),
       skipDuplicates: true,

@@ -2,6 +2,8 @@ const TMDB_BASE = "https://api.themoviedb.org/3";
 const POSTER_BASE = "https://image.tmdb.org/t/p/w342";
 const BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
 
+import { db } from "@/lib/db";
+
 const MAX_OVERVIEW = 2000;
 const MAX_TITLE = 300;
 
@@ -931,6 +933,34 @@ export async function fetchRuntimeMinutes(
     if (valid.length === 0) return null;
     return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
   });
+}
+
+/**
+ * Same as fetchRuntimeMinutes but backed by a persistent DB cache, so stats
+ * and Wrapped render instantly even after a cold start. Runtimes are stable,
+ * so cached values never expire; refetches only repair misses.
+ */
+export async function fetchRuntimeMinutesCached(
+  type: "MOVIE" | "SERIES",
+  tmdbId: number,
+): Promise<number | null> {
+  const tmdbKey = `${type}:${tmdbId}`;
+  const cachedRow = await db.tmdbRuntime
+    .findUnique({ where: { tmdbKey }, select: { minutes: true } })
+    .catch(() => null);
+  if (cachedRow) return cachedRow.minutes;
+
+  const minutes = await fetchRuntimeMinutes(type, tmdbId).catch(() => null);
+  if (minutes !== null) {
+    await db.tmdbRuntime
+      .upsert({
+        where: { tmdbKey },
+        update: { minutes, fetchedAt: new Date() },
+        create: { tmdbKey, minutes },
+      })
+      .catch(() => undefined);
+  }
+  return minutes;
 }
 
 export function fetchSimilar(

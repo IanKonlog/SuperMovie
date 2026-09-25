@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { getShareToken } from "@/modules/media/queries";
 import { getWrappedData, parseWrappedYear } from "@/modules/wrapped/queries";
 import { WrappedStory } from "@/modules/wrapped/components/wrapped-story";
+import { CopyLink } from "@/modules/wrapped/components/copy-link";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,7 @@ export default async function WrappedPage({
   const currentYear = new Date().getFullYear();
   const year = parseWrappedYear(params.year) ?? currentYear;
   const data = await getWrappedData(year);
+  const shareToken = await getShareToken();
 
   return (
     <div className="page-enter flex flex-col gap-5">
@@ -34,7 +37,24 @@ export default async function WrappedPage({
       </div>
 
       {data ? (
-        <WrappedStory data={data} />
+        <>
+          <WrappedStory data={data} />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted">
+              Friends with your share link can watch this story too.
+            </p>
+            {shareToken ? (
+              <CopyLink url={`/s/${shareToken}/wrapped?year=${year}`} />
+            ) : (
+              <Link
+                href="/stats"
+                className="text-sm text-muted underline transition hover:text-foreground"
+              >
+                Create a share link on the stats page
+              </Link>
+            )}
+          </div>
+        </>
       ) : (
         <div className="rounded-lg border border-line bg-surface p-8 text-center">
           <p className="text-lg font-semibold">

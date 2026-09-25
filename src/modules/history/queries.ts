@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 
 export type HistoryEntry = {
   id: string;
-  kind: "MOVIE" | "SERIES" | "BOOK";
+  kind: "MOVIE" | "SERIES" | "BOOK" | "EPISODE";
   title: string;
   posterUrl: string | null;
   rating: number | null;
@@ -35,7 +35,7 @@ export async function getHistoryMonth(
   const start = new Date(Date.UTC(year, month - 1, 1));
   const end = new Date(Date.UTC(year, month, 1));
 
-  const [media, books] = await Promise.all([
+  const [media, books, episodes] = await Promise.all([
     db.mediaItem.findMany({
       where: { status: "COMPLETED", completedAt: { gte: start, lt: end } },
       select: {
@@ -59,6 +59,17 @@ export async function getHistoryMonth(
       },
       orderBy: { completedAt: "asc" },
     }),
+    db.episodeWatched.findMany({
+      where: { watchedAt: { gte: start, lt: end } },
+      select: {
+        id: true,
+        seasonNumber: true,
+        episodeNumber: true,
+        watchedAt: true,
+        mediaItem: { select: { title: true, posterUrl: true, rating: true } },
+      },
+      orderBy: { watchedAt: "asc" },
+    }),
   ]);
 
   const entries: HistoryEntry[] = [
@@ -78,6 +89,14 @@ export async function getHistoryMonth(
       rating: book.rating,
       day: (book.completedAt as Date).toISOString().slice(0, 10),
     })),
+    ...episodes.map((episode) => ({
+      id: episode.id,
+      kind: "EPISODE" as const,
+      title: `S${episode.seasonNumber}E${episode.episodeNumber} · ${episode.mediaItem.title}`,
+      posterUrl: episode.mediaItem.posterUrl,
+      rating: episode.mediaItem.rating,
+      day: (episode.watchedAt as Date).toISOString().slice(0, 10),
+    })),
   ].sort((a, b) => a.day.localeCompare(b.day));
 
   const byDay = new Map<string, HistoryEntry[]>();
@@ -91,7 +110,7 @@ export async function getHistoryMonth(
 }
 
 export async function getHistoryAvailableMonths(): Promise<string[]> {
-  const [media, books] = await Promise.all([
+  const [media, books, episodes] = await Promise.all([
     db.mediaItem.findMany({
       where: { status: "COMPLETED", completedAt: { not: null } },
       select: { completedAt: true },
@@ -100,10 +119,14 @@ export async function getHistoryAvailableMonths(): Promise<string[]> {
       where: { status: "FINISHED", completedAt: { not: null } },
       select: { completedAt: true },
     }),
+    db.episodeWatched.findMany({
+      select: { watchedAt: true },
+    }),
   ]);
   const months = new Set<string>();
-  for (const row of [...media, ...books]) {
-    months.add((row.completedAt as Date).toISOString().slice(0, 7));
+  for (const row of [...media, ...books, ...episodes]) {
+    const date = "watchedAt" in row ? row.watchedAt : row.completedAt;
+    if (date) months.add(date.toISOString().slice(0, 7));
   }
   return [...months].sort((a, b) => b.localeCompare(a));
 }

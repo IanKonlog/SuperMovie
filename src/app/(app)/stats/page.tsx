@@ -8,7 +8,7 @@ import {
   getStatsItems,
 } from "@/modules/media/queries";
 import { getBookStats } from "@/modules/books/queries";
-import { fetchRuntimeMinutes } from "@/modules/tmdb/queries";
+import { fetchRuntimeMinutesCached } from "@/modules/tmdb/queries";
 import { titleHref } from "@/modules/tmdb/links";
 import {
   ActivityIcon,
@@ -166,7 +166,7 @@ export default async function StatsPage() {
   );
   const runtimes = await Promise.all(
     withTmdb.map((i) =>
-      fetchRuntimeMinutes(i.type, i.tmdbId as number).catch(() => null),
+      fetchRuntimeMinutesCached(i.type, i.tmdbId as number).catch(() => null),
     ),
   );
   let minutesWatched = 0;

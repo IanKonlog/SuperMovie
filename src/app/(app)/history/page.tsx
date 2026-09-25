@@ -148,7 +148,7 @@ export default async function HistoryPage({
         className="flex flex-col gap-2"
       >
         <h2 className="text-sm font-medium">
-          Completed this month{" "}
+          Watched this month{" "}
           <span className="font-mono text-xs tabular-nums text-muted">
             {history.entries.length}
           </span>

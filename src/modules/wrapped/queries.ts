@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { fetchRuntimeMinutes } from "@/modules/tmdb/queries";
+import { fetchRuntimeMinutesCached } from "@/modules/tmdb/queries";
 
 export const WRAPPED_MIN_YEAR = 2019;
 
@@ -77,47 +77,76 @@ export async function getWrappedData(
 
   if (items.length === 0 && books.length === 0) return null;
 
-  // Hours: movies by runtime, series by watched episodes x runtime.
-  const withTmdb = items.filter((i) => i.tmdbId !== null);
-  const runtimes = await Promise.all(
-    withTmdb
-      .slice(0, RUNTIME_LOOKUP_CAP)
-      .map((i) =>
-        fetchRuntimeMinutes(i.type, i.tmdbId as number).catch(() => null),
-      ),
-  );
-
-  const runtimeByItem = new Map<string, number>();
-  withTmdb.slice(0, RUNTIME_LOOKUP_CAP).forEach((item, idx) => {
-    if (runtimes[idx] !== null) {
-      runtimeByItem.set(item.id, runtimes[idx] as number);
-    }
-  });
-
-  const seasons = await db.mediaSeason.findMany({
-    where: { mediaItemId: { in: items.map((i) => i.id) } },
-    select: { mediaItemId: true, watchedCount: true },
+  // Episodes watched in the year, per series (year-accurate, not the
+  // all-time season cache).
+  const episodeRows = await db.episodeWatched.findMany({
+    where: { watchedAt: { gte: start, lt: end } },
+    select: { mediaItemId: true },
   });
   const episodesByItem = new Map<string, number>();
-  for (const season of seasons) {
+  for (const row of episodeRows) {
     episodesByItem.set(
-      season.mediaItemId,
-      (episodesByItem.get(season.mediaItemId) ?? 0) + season.watchedCount,
+      row.mediaItemId,
+      (episodesByItem.get(row.mediaItemId) ?? 0) + 1,
     );
   }
 
-  let minutesWatched = 0;
-  let episodesWatched = 0;
-  for (const item of items) {
-    const runtime = runtimeByItem.get(item.id);
-    if (runtime === undefined) continue;
-    if (item.type === "MOVIE") {
-      minutesWatched += runtime;
-    } else {
-      const episodes = episodesByItem.get(item.id) ?? 0;
-      episodesWatched += episodes;
-      minutesWatched += episodes * runtime;
+  // Runtimes: every completed title plus every series with episodes in the
+  // year, all through the persistent cache.
+  const seriesWithEpisodes = [...episodesByItem.keys()].filter(
+    (id) => !items.some((i) => i.id === id),
+  );
+  const extraSeries =
+    seriesWithEpisodes.length > 0
+      ? await db.mediaItem.findMany({
+          where: { id: { in: seriesWithEpisodes }, tmdbId: { not: null } },
+          select: { id: true, type: true, tmdbId: true },
+        })
+      : [];
+  const lookupTargets: {
+    id: string;
+    type: "MOVIE" | "SERIES";
+    tmdbId: number;
+  }[] = [
+    ...items
+      .filter((i) => i.tmdbId !== null)
+      .map((i) => ({
+        id: i.id,
+        type: i.type as "MOVIE" | "SERIES",
+        tmdbId: i.tmdbId as number,
+      })),
+    ...extraSeries.map((s) => ({
+      id: s.id,
+      type: s.type as "MOVIE" | "SERIES",
+      tmdbId: s.tmdbId as number,
+    })),
+  ].slice(0, RUNTIME_LOOKUP_CAP);
+
+  const runtimes = await Promise.all(
+    lookupTargets.map((t) =>
+      fetchRuntimeMinutesCached(t.type, t.tmdbId).catch(() => null),
+    ),
+  );
+  const runtimeByItem = new Map<string, number>();
+  lookupTargets.forEach((target, idx) => {
+    if (runtimes[idx] !== null) {
+      runtimeByItem.set(target.id, runtimes[idx] as number);
     }
+  });
+
+  // Movies count their runtime when completed; series count every episode
+  // watched in the year x the show's average runtime.
+  let minutesWatched = 0;
+  for (const item of items) {
+    if (item.type !== "MOVIE") continue;
+    const runtime = runtimeByItem.get(item.id);
+    if (runtime !== undefined) minutesWatched += runtime;
+  }
+  let episodesWatched = 0;
+  for (const [itemId, episodes] of episodesByItem) {
+    episodesWatched += episodes;
+    const runtime = runtimeByItem.get(itemId);
+    if (runtime !== undefined) minutesWatched += episodes * runtime;
   }
 
   const moviesCompleted = items.filter((i) => i.type === "MOVIE").length;

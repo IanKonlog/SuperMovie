@@ -44,4 +44,8 @@ next-env.d.ts
 # local planning docs (kept private, not for the open-source repo)
 /docs/
 
+# agent working contracts (kept private, stay local)
+/AGENTS.md
+/CLAUDE.md
+
 /src/generated/prisma

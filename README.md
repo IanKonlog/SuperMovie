@@ -9,7 +9,7 @@ Single user, Next.js 16 + PostgreSQL + Prisma, deployed on a VPS with Docker Com
 Prerequisites: Node 24+, Docker.
 
 ```sh
-docker start superapp-pg        # local Postgres on localhost:5433
+docker run -d --name superapp-pg -p 5433:5432 -e POSTGRES_PASSWORD=postgres postgres:17-alpine
 cp .env.example .env            # then adjust values if needed
 npm install
 npx prisma migrate dev          # apply migrations
@@ -69,7 +69,5 @@ Open `https://<machine-name>.<tailnet>.ts.net` from any device on your tailnet.
 
 - `src/app/` — routing, layouts, login
 - `src/modules/<feature>/` — feature code (actions, queries, components)
-- `src/lib/` — singletons (db, auth)
+- `src/lib/` — shared utilities (db, auth, icons, csv)
 - `prisma/` — schema + migrations
-
-See `AGENTS.md` for architecture rules and conventions.

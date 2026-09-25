@@ -101,8 +101,10 @@ export default async function TitlePage({
               unoptimized
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-background/10" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/40 to-transparent" />
+          {/* Light mode keeps the photo clear and fades only the text zone;
+              dark mode darkens the whole frame. */}
+          <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-background via-background/60 to-transparent dark:inset-0 dark:h-auto dark:from-background dark:via-background/40 dark:to-background/10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/45 to-transparent dark:via-background/40" />
 
           <div className="absolute bottom-0 left-0 flex w-full items-end gap-4 p-5 sm:gap-6 sm:p-10">
             {title.posterUrl && (

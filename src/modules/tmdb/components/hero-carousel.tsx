@@ -70,8 +70,10 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
                   unoptimized
                 />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-background/10" />
-              <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/40 to-transparent" />
+              {/* Light mode keeps the photo clear and fades only the text
+                  zone; dark mode darkens the whole frame. */}
+              <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-background via-background/60 to-transparent dark:inset-0 dark:h-auto dark:from-background dark:via-background/40 dark:to-background/10" />
+              <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/45 to-transparent dark:via-background/40" />
 
               <div className="absolute bottom-0 left-0 flex max-w-2xl flex-col gap-2 p-6 pb-7 sm:gap-3 sm:p-10">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
@@ -138,7 +140,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           onClick={() =>
             setIndex((i) => (i - 1 + slides.length) % slides.length)
           }
-          className="absolute top-1/2 left-4 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-xl opacity-0 backdrop-blur transition hover:bg-black/80 group-hover:opacity-100 md:flex lg:opacity-40 lg:hover:opacity-100"
+          className="absolute top-1/2 left-4 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 shadow-[var(--shadow-overlay)] backdrop-blur transition hover:bg-background group-hover:opacity-100 md:flex lg:opacity-40 lg:hover:opacity-100 dark:bg-black/50 dark:text-white dark:hover:bg-black/80"
         >
           ‹
         </button>
@@ -147,7 +149,7 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           aria-label="Next featured title"
           tabIndex={-1}
           onClick={() => setIndex((i) => (i + 1) % slides.length)}
-          className="absolute top-1/2 right-4 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-xl opacity-0 backdrop-blur transition hover:bg-black/80 md:flex lg:opacity-40 lg:hover:opacity-100"
+          className="absolute top-1/2 right-4 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 shadow-[var(--shadow-overlay)] backdrop-blur transition hover:bg-background md:flex lg:opacity-40 lg:hover:opacity-100 dark:bg-black/50 dark:text-white dark:hover:bg-black/80"
         >
           ›
         </button>

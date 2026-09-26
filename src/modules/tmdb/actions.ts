@@ -107,6 +107,7 @@ export type MoodState = {
 export async function discoverByMoodAction(
   genres: unknown,
   maxRuntimeMinutes: unknown,
+  minRating: unknown = "",
 ): Promise<MoodState> {
   await requireSession();
 
@@ -126,8 +127,14 @@ export async function discoverByMoodAction(
       ? null
       : Math.min(Math.max(Math.round(runtime), 40), 300);
 
+  const ratingValue = Number(minRating);
+  const minRatingValue =
+    minRating === "" || minRating === null || Number.isNaN(ratingValue)
+      ? null
+      : Math.min(Math.max(Math.round(ratingValue), 1), 9);
+
   try {
-    const results = await discoverByMood(names, maxRuntime);
+    const results = await discoverByMood(names, maxRuntime, minRatingValue);
     return { results };
   } catch {
     return { results: [], error: "Mood search is unavailable right now." };

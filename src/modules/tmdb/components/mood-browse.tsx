@@ -13,6 +13,14 @@ const RUNTIMES = [
   { value: "150", label: "≤ 2.5 h" },
 ];
 
+const RATINGS = [
+  { value: "", label: "Any rating" },
+  { value: "6", label: "★ 6+" },
+  { value: "7", label: "★ 7+" },
+  { value: "8", label: "★ 8+" },
+  { value: "9", label: "★ 9+" },
+];
+
 type MoodResult = {
   tmdbId: number;
   title: string;
@@ -24,6 +32,7 @@ type MoodResult = {
 export function MoodBrowse({ genres }: { genres: string[] }) {
   const [picked, setPicked] = useState<string[]>([]);
   const [runtime, setRuntime] = useState("");
+  const [minRating, setMinRating] = useState("");
   const [results, setResults] = useState<MoodResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -45,7 +54,7 @@ export function MoodBrowse({ genres }: { genres: string[] }) {
     }
     setError(null);
     startTransition(async () => {
-      const state = await discoverByMoodAction(picked, runtime);
+      const state = await discoverByMoodAction(picked, runtime, minRating);
       if (state.error) setError(state.error);
       setResults(state.results);
     });
@@ -79,6 +88,18 @@ export function MoodBrowse({ genres }: { genres: string[] }) {
           className="rounded-lg border border-line bg-background px-2 py-1.5 text-sm outline-none"
         >
           {RUNTIMES.map(({ value, label }) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={minRating}
+          onChange={(e) => setMinRating(e.target.value)}
+          aria-label="Minimum TMDB rating"
+          className="rounded-lg border border-line bg-background px-2 py-1.5 text-sm outline-none"
+        >
+          {RATINGS.map(({ value, label }) => (
             <option key={value} value={value}>
               {label}
             </option>

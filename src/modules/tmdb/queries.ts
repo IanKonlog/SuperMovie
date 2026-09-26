@@ -976,6 +976,7 @@ export function fetchSimilar(
 export async function discoverByMood(
   genreNamesList: string[],
   maxRuntimeMinutes: number | null,
+  minRating: number | null = null,
 ): Promise<
   {
     tmdbId: number;
@@ -1000,7 +1001,7 @@ export async function discoverByMood(
   }
   if (ids.size === 0) return [];
 
-  const cacheKey = `mood:${[...ids].sort((a, b) => a - b).join(",")}:${maxRuntimeMinutes ?? 0}`;
+  const cacheKey = `mood:${[...ids].sort((a, b) => a - b).join(",")}:${maxRuntimeMinutes ?? 0}:${minRating ?? 0}`;
   return cached(cacheKey, 60 * 60 * 1000, async () => {
     const params: Record<string, string> = {
       with_genres: [...ids].join(","),
@@ -1012,6 +1013,9 @@ export async function discoverByMood(
     };
     if (maxRuntimeMinutes !== null) {
       params["with_runtime.lte"] = String(maxRuntimeMinutes);
+    }
+    if (minRating !== null) {
+      params["vote_average.gte"] = String(minRating);
     }
     const res = await fetch(tmdbUrl("/discover/movie", params), {
       headers: tmdbHeaders(),

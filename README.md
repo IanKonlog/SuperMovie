@@ -1,73 +1,81 @@
 # SuperMovie
 
-Personal, self-hosted movie & TV tracker — the first module of a personal super app. Powered by TMDB.
+A personal, self-hosted tracker for movies, series, and books. Keep a library, record what you have watched or read, set goals, and look back at the year in a shareable Wrapped story.
 
-Single user, Next.js 16 + PostgreSQL + Prisma, deployed on a VPS with Docker Compose behind Caddy.
+**Stack:** Next.js 16 · TypeScript · PostgreSQL 17 · Prisma 6 · Docker Compose
 
-## Development
+## What it does
 
-Prerequisites: Node 24+, Docker.
+- Track movies and series with TMDB metadata, seasons, ratings, tags, and watch history.
+- Track books and import a Goodreads library.
+- Explore a watch calendar, goals, recommendations, and yearly stats.
+- Share a read-only library or Wrapped story through a link you create.
+- Export your data and run the app on your own server.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Browser[Browser] -->|private HTTPS| Tailnet[Tailscale Serve]
+  Tailnet -->|localhost:3000| App[Next.js app]
+  App -->|Prisma| DB[(PostgreSQL volume)]
+  App -->|metadata| TMDB[TMDB API]
+  DB --> Backup[Scheduled SQL backup]
+```
+
+The default Compose stack runs the app and PostgreSQL. The app listens only on `127.0.0.1:3000`; Tailscale Serve can make it available to devices on your tailnet. An optional Caddy profile supports a public domain with HTTPS. Prisma migrations run when the app container starts. PostgreSQL data lives in a named Docker volume, and the repository includes a backup script and restore instructions.
+
+This is deliberately a **single-user** application. Server Actions check the session before protected work, and the session is stored in an HTTP-only signed cookie. It does not require an external auth service or a multi-user account system.
+
+## Run locally
+
+Prerequisites: Node.js 24+, Docker, and a [TMDB API key](https://developer.themoviedb.org/docs/getting-started) for movie and series metadata.
 
 ```sh
 docker run -d --name superapp-pg -p 5433:5432 -e POSTGRES_PASSWORD=postgres postgres:17-alpine
-cp .env.example .env            # then adjust values if needed
-npm install
-npx prisma migrate dev          # apply migrations
+cp .env.example .env
+# Set TMDB_API_KEY and replace the example auth values in .env.
+npm ci
+npx prisma migrate dev
 npm run dev
 ```
 
-## Deploy to a VPS via Tailscale (rsync flow)
+Open <http://localhost:3000>. The development database URL in `.env.example` points to the PostgreSQL container above. Stop or remove an existing `superapp-pg` container before reusing that name.
 
-No third party needed: laptop and VPS talk over the tailnet.
+## Self-host with Docker Compose
 
-### One-time: VPS setup
+1. Copy `.env.example` to `.env` on the server. Set a unique `POSTGRES_PASSWORD`, `AUTH_USERNAME`, `AUTH_PASSWORD`, and `AUTH_SECRET` (at least 16 characters). Add a `TMDB_API_KEY` for metadata. Do not commit `.env`.
+2. Run `docker compose up -d --build`. The app is now reachable on the server at `127.0.0.1:3000`.
+3. For private HTTPS access, install Tailscale, join your tailnet, and run `tailscale serve --bg localhost:3000`. Set `AUTH_SECURE_COOKIE=true` in `.env` and recreate the app container.
 
-```sh
-# on the VPS — install Docker + Tailscale, then:
-tailscale up                                  # join your tailnet
-git clone <repo> superapp 2>/dev/null || true # or let deploy.sh rsync it
-cd superapp
-cp .env.production.example .env               # fill in secrets (never synced)
-docker compose up -d --build                  # app on localhost:3000, migrations run on start
-tailscale serve --bg localhost:3000           # HTTPS on your tailnet
-```
+The `domain` Compose profile runs Caddy if you want to expose a real domain instead. Configure its `SITE_ADDRESS` and DNS before using that profile. The default private setup needs no public inbound port.
 
-### One-time: bring your existing data
+## Data and recovery
 
-```sh
-# on the Mac (local dev database):
-docker exec superapp-pg pg_dump -U postgres superapp > superapp-dump.sql
-scp superapp-dump.sql your-vps:~/
-```
+- PostgreSQL lives in the `pgdata` Docker volume, which survives app rebuilds.
+- `scripts/backup-db.sh` writes compressed database backups. To run it nightly with seven-day rotation, add a cron entry on the server:
 
-### Everyday: ship changes
+  ```cron
+  30 2 * * * /home/YOU/SuperMovie/scripts/backup-db.sh /home/YOU/SuperMovie
+  ```
 
-```sh
-VPS_USER=me VPS_HOST=your-vps.tailnet.ts.net ./scripts/deploy.sh
-```
+- Copy backups off the server as part of your own recovery plan.
+- Restore a backup with `gunzip -c dump.sql.gz | docker compose exec -T db psql -U postgres superapp` after checking the configured database name and user.
 
-rsyncs the code (never `.env` or generated code) and rebuilds on the VPS. Migrations run automatically on container start.
+## Repository layout
 
-### Open it anywhere
+| Path           | Purpose                                                             |
+| -------------- | ------------------------------------------------------------------- |
+| `src/app/`     | Routes, layouts, and login                                          |
+| `src/modules/` | Media, books, goals, history, recommendations, and Wrapped features |
+| `src/lib/`     | Authentication, database access, and shared server utilities        |
+| `prisma/`      | Schema and migrations                                               |
+| `scripts/`     | Deployment and backup scripts                                       |
 
-Open `https://<machine-name>.<tailnet>.ts.net` from any device on your tailnet.
+## Engineering choices
 
-## Data & backups
+- **Private by default:** Compose binds the app to localhost, with Tailscale handling remote access.
+- **Recoverable state:** migrations are committed, database storage survives container rebuilds, and backup and restore paths are documented.
+- **Small operational footprint:** one web container, one database container, and no mandatory hosted services beyond TMDB metadata.
 
-- Postgres lives in the `pgdata` Docker volume — survives rebuilds, restarts, and deploys.
-- Nightly backup with 7-day rotation (cron on the VPS):
-
-```sh
-30 2 * * * /home/YOU/superapp/scripts/backup-db.sh /home/YOU/superapp
-```
-
-- Optional off-VPS copy over Tailscale (from the Mac):
-  `scp your-vps:~/backups/superapp-$(date +\%Y\%m\%d)*.sql.gz ~/backups/`
-- Restore a backup: `gunzip -c dump.sql.gz | docker compose exec -T db psql -U postgres superapp`
-
-## Project layout
-
-- `src/app/` — routing, layouts, login
-- `src/modules/<feature>/` — feature code (actions, queries, components)
-- `src/lib/` — shared utilities (db, auth, icons, csv)
-- `prisma/` — schema + migrations
+The app is actively developed as a personal project. It is designed for one account and has not been benchmarked as a multi-user service.
